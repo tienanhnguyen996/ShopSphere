@@ -9,8 +9,9 @@
     },
     "notion": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-notion@0.2.0"],
+      "args": ["-y", "@suekou/mcp-notion-server"],
       "env": {
+        "NOTION_API_TOKEN": "${NOTION_TOKEN}",
         "NOTION_API_KEY": "${NOTION_TOKEN}"
       }
     },
@@ -40,7 +41,7 @@
     },
     "postman": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postman@0.1.0"],
+      "args": ["-y", "@postman/postman-mcp-server@2.13.0"],
       "env": {
         "POSTMAN_API_KEY": "${POSTMAN_API_KEY}",
         "POSTMAN_WORKSPACE_NAME": "${POSTMAN_WORKSPACE_NAME}"

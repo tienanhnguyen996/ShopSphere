@@ -51,14 +51,14 @@ Add to VS Code settings (`.vscode/settings.json` or user settings):
     },
     "notion": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-notion@0.2.0"],
+      "args": ["-y", "@suekou/mcp-notion-server"],
       "env": {
-        "NOTION_API_KEY": "${env:NOTION_TOKEN}"
+        "NOTION_API_TOKEN": "${env:NOTION_TOKEN}"
       }
     },
     "postman": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-postman@0.1.0"],
+      "args": ["-y", "@postman/postman-mcp-server@2.13.0"],
       "env": {
         "POSTMAN_API_KEY": "${env:POSTMAN_API_KEY}",
         "POSTMAN_WORKSPACE_NAME": "${env:POSTMAN_WORKSPACE_NAME}"
@@ -88,9 +88,9 @@ Add to Windsurf MCP configuration file (`~/.windsurf/mcp-config.json`):
     },
     "notion": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-notion@0.2.0"],
+      "args": ["-y", "@suekou/mcp-notion-server"],
       "env": {
-        "NOTION_API_KEY": "secret_YOUR_TOKEN"
+        "NOTION_API_TOKEN": "secret_YOUR_TOKEN"
       }
     },
     "postman": {
@@ -164,9 +164,9 @@ Antigravity uses a centralized MCP configuration. Add servers through the UI or 
     "notion": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-notion@0.2.0"],
+      "args": ["-y", "@suekou/mcp-notion-server"],
       "env": {
-        "NOTION_API_KEY": "secret_YOUR_TOKEN"
+        "NOTION_API_TOKEN": "secret_YOUR_TOKEN"
       }
     },
     "postman": {
