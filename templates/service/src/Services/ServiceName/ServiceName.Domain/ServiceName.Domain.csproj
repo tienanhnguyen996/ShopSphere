@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>ShopSphere.Services.ServiceName.Domain</RootNamespace>
+  </PropertyGroup>
+
+</Project>

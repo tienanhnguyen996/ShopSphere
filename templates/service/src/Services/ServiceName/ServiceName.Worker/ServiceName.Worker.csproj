@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>ShopSphere.Services.ServiceName.Worker</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ServiceName.Application\ServiceName.Application.csproj" />
+    <ProjectReference Include="..\ServiceName.Infrastructure\ServiceName.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
