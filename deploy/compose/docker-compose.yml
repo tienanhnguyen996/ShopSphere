@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: shopsphere-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "DevPassword123!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "DevPassword123!" -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    networks:
+      - shopsphere-network
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: shopsphere-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: "guest"
+      RABBITMQ_DEFAULT_PASS: "guest"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    networks:
+      - shopsphere-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: shopsphere-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: redis-cli ping | grep PONG
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - shopsphere-network
+
+volumes:
+  sqlserver-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  shopsphere-network:
+    driver: bridge

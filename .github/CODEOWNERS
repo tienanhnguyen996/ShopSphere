@@ -1,0 +1,9 @@
+# ShopSphere Code Owners
+# Each line is a file pattern followed by one or more GitHub username(s)
+# These owners will be auto-requested for review on PRs
+
+# Default: all files (replace YOUR_USERNAME with actual GitHub username)
+* @tienanhnguyen996 @TEAMMATE_USERNAME
+
+# Deploy directory requires infrastructure owner approval
+/deploy/ @tienanhnguyen996

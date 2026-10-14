@@ -1,0 +1,70 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(terraform apply*)",
+      "PowerShell(terraform apply*)",
+      "Bash(git push --force*)",
+      "PowerShell(git push --force*)",
+      "Bash(rm -rf*)",
+      "PowerShell(Remove-Item -Recurse -Force*)",
+      "Read(.env)"
+    ],
+    "allow": [
+      "Bash(dotnet *)",
+      "PowerShell(dotnet *)",
+      "Bash(pnpm *)",
+      "PowerShell(pnpm *)",
+      "Bash(npm *)",
+      "PowerShell(npm *)",
+      "Bash(docker *)",
+      "PowerShell(docker *)",
+      "Bash(docker compose *)",
+      "PowerShell(docker compose *)",
+      "Bash(gh pr *)",
+      "PowerShell(gh pr *)",
+      "Bash(gh issue *)",
+      "PowerShell(gh issue *)",
+      "Bash(gh repo *)",
+      "PowerShell(gh repo *)",
+      "Bash(terraform plan*)",
+      "PowerShell(terraform plan*)",
+      "Bash(terraform validate*)",
+      "PowerShell(terraform validate*)",
+      "Bash(terraform fmt*)",
+      "PowerShell(terraform fmt*)",
+      "Bash(git status*)",
+      "PowerShell(git status*)",
+      "Bash(git add*)",
+      "PowerShell(git add*)",
+      "Bash(git commit*)",
+      "PowerShell(git commit*)",
+      "Bash(git push)",
+      "PowerShell(git push)",
+      "Bash(git log*)",
+      "PowerShell(git log*)",
+      "Bash(git diff*)",
+      "PowerShell(git diff*)",
+      "Edit",
+      "Write",
+      "Read",
+      "Glob",
+      "Grep"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; if [[ \"$f\" =~ \\.(cs|csproj|sln)$ ]]; then dotnet format \"$f\" --no-restore 2>/dev/null || true; fi; } 2>/dev/null || true",
+            "shell": "bash",
+            "statusMessage": "Formatting C# code",
+            "if": "Edit(**.cs)|Edit(**.csproj)|Write(**.cs)|Write(**.csproj)"
+          }
+        ]
+      }
+    ]
+  }
+}
