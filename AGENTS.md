@@ -63,11 +63,14 @@
 
 ## Key References
 
-- **Architecture**: [docs/requirements/01-architecture.md](./requirements/01-architecture.md)
-- **Services**: [docs/requirements/02-services.md](./requirements/02-services.md)
-- **Messaging**: [docs/requirements/03-messaging.md](./requirements/03-messaging.md)
-- **Infrastructure**: [docs/requirements/04-infrastructure.md](./requirements/04-infrastructure.md)
-- **Agent Setup**: [docs/agent-setup.md](./agent-setup.md) — MCP configuration for GitHub, Notion, Terraform tools
+**Read selectively** (700 lines total across 4 files):
+- **Architecture**: [docs/requirements/01-architecture.md](./docs/requirements/01-architecture.md) — Service boundaries, messaging, consistency
+- **Services**: [docs/requirements/02-services.md](./docs/requirements/02-services.md) — Service catalog and interactions
+- **Messaging**: [docs/requirements/03-messaging.md](./docs/requirements/03-messaging.md) — Message contracts, Saga, failures
+- **Infrastructure**: [docs/requirements/04-infrastructure.md](./docs/requirements/04-infrastructure.md) — Stack, deployment, observability
+- **Agent Setup**: [docs/agent-setup.md](./docs/agent-setup.md) — MCP configuration
+
+**Context budget tip**: Start with this file (AGENTS.md). Read detailed requirements only when implementing specific features.
 
 ## Common Pitfalls
 
