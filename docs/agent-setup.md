@@ -12,6 +12,7 @@ The repository includes `.mcp.json` which works automatically with **Claude Code
 |--------|---------|----------------|
 | **GitHub** | PR/issue management, repo operations | Personal Access Token |
 | **Notion** | Docs/specs management | Integration Token |
+| **Postman** | API documentation and collection management | API Key |
 | **Context7** | Codebase context indexing | None (local) |
 | **Microsoft Learn** | .NET/Azure documentation | None |
 | **Terraform** | Infrastructure inspection | None (read-only) |
@@ -26,6 +27,8 @@ The repository includes `.mcp.json` which works automatically with **Claude Code
    ```bash
    GITHUB_TOKEN=ghp_...
    NOTION_TOKEN=secret_...
+   POSTMAN_API_KEY=PMAK-...
+   POSTMAN_WORKSPACE_NAME=ShopSphere
    ```
 3. Authenticate GitHub CLI:
    ```bash
@@ -51,6 +54,14 @@ Add to VS Code settings (`.vscode/settings.json` or user settings):
       "args": ["-y", "@modelcontextprotocol/server-notion@0.2.0"],
       "env": {
         "NOTION_API_KEY": "${env:NOTION_TOKEN}"
+      }
+    },
+    "postman": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postman@0.1.0"],
+      "env": {
+        "POSTMAN_API_KEY": "${env:POSTMAN_API_KEY}",
+        "POSTMAN_WORKSPACE_NAME": "${env:POSTMAN_WORKSPACE_NAME}"
       }
     },
     "context7": {
@@ -82,6 +93,14 @@ Add to Windsurf MCP configuration file (`~/.windsurf/mcp-config.json`):
         "NOTION_API_KEY": "secret_YOUR_TOKEN"
       }
     },
+    "postman": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postman@0.1.0"],
+      "env": {
+        "POSTMAN_API_KEY": "PMAK_YOUR_KEY",
+        "POSTMAN_WORKSPACE_NAME": "ShopSphere"
+      }
+    },
     "terraform": {
       "command": "docker",
       "args": [
@@ -108,6 +127,14 @@ Add to Cursor settings (`.cursor/mcp.json` in project or `~/.cursor/mcp.json` gl
       "args": ["-y", "@modelcontextprotocol/server-github@0.5.0"],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_YOUR_TOKEN"
+      }
+    },
+    "postman": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postman@0.1.0"],
+      "env": {
+        "POSTMAN_API_KEY": "PMAK_YOUR_KEY",
+        "POSTMAN_WORKSPACE_NAME": "ShopSphere"
       }
     },
     "context7": {
@@ -141,6 +168,20 @@ Antigravity uses a centralized MCP configuration. Add servers through the UI or 
       "env": {
         "NOTION_API_KEY": "secret_YOUR_TOKEN"
       }
+    },
+    "postman": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postman@0.1.0"],
+      "env": {
+        "POSTMAN_API_KEY": "PMAK_YOUR_KEY",
+        "POSTMAN_WORKSPACE_NAME": "ShopSphere"
+      }
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@context7/mcp-server@latest"]
     }
   }
 }
@@ -166,6 +207,16 @@ Antigravity uses a centralized MCP configuration. Add servers through the UI or 
 6. Submit → Copy "Internal Integration Secret" (starts with `secret_`)
 7. Add to `.env`: `NOTION_TOKEN=secret_...`
 8. **Share pages**: Go to Notion pages/databases you want accessible, click Share, invite the integration
+
+### Postman API Key
+
+1. Go to https://web.postman.co/settings/me/api-keys
+2. Click "Generate API Key"
+3. Name: "ShopSphere AI Agent"
+4. Copy the key (starts with `PMAK-`)
+5. Add to `.env`: `POSTMAN_API_KEY=PMAK-...`
+6. Set workspace name: `POSTMAN_WORKSPACE_NAME=ShopSphere`
+7. Create the workspace in Postman if it doesn't exist
 
 ## Verification
 
@@ -198,6 +249,12 @@ gh pr list
 # Should list modules from deploy/terraform/
 ```
 
+**Postman**:
+```bash
+# Ask agent: "List collections in ShopSphere workspace"
+# Should return existing collections
+```
+
 ## Troubleshooting
 
 **"Server not found" or "Connection failed"**:
@@ -214,6 +271,11 @@ gh pr list
 **"Not shared" (Notion)**:
 1. Open Notion page → Share → Invite your integration
 2. Repeat for each page/database the agent needs access to
+
+**"Workspace not found" (Postman)**:
+1. Check workspace name matches exactly (case-sensitive)
+2. Verify API key has workspace access
+3. Create workspace if it doesn't exist
 
 **Terraform mount fails (Windows)**:
 - Use Git Bash or WSL for `${PWD}`

@@ -37,6 +37,14 @@
         "${PWD}/deploy/terraform:/workspace",
         "mcp/terraform:0.2.0"
       ]
+    },
+    "postman": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postman@0.1.0"],
+      "env": {
+        "POSTMAN_API_KEY": "${POSTMAN_API_KEY}",
+        "POSTMAN_WORKSPACE_NAME": "${POSTMAN_WORKSPACE_NAME}"
+      }
     }
   }
 }
