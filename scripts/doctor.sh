@@ -180,6 +180,18 @@ else
 fi
 
 echo ""
+
+# 7. Lint and Code Style tooling
+echo "🎨 Checking linting and formatting tooling..."
+if [ -f "scripts/lint.sh" ] && [ -f "scripts/fix-lint.sh" ]; then
+  echo -e "${GREEN}✅${NC} Lint scripts present (scripts/lint.sh, scripts/fix-lint.sh)"
+else
+  echo -e "${RED}❌${NC} Lint scripts missing"
+  echo "   Fix: Ensure scripts/lint.sh and scripts/fix-lint.sh exist"
+  FAILED=1
+fi
+
+echo ""
 echo "===================="
 
 if [ $FAILED -eq 0 ]; then

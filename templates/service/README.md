@@ -2,6 +2,14 @@
 
 Generate a new microservice skeleton for ShopSphere monorepo.
 
+## Installation
+
+Before using the template for the first time, install it locally:
+
+```bash
+dotnet new install ./templates/service
+```
+
 ## Usage
 
 From the repository root:
@@ -65,14 +73,26 @@ tests/{Name}.Tests.Integration/
 
 After generating:
 
-1. Update `AGENTS.md` with actual ownership, contracts, state machine
-2. Add domain entities to `{Name}.Domain`
-3. Implement API controllers in `{Name}.Api/Controllers`
-4. Add application commands/queries in `{Name}.Application`
-5. Configure EF Core mappings in `{Name}.Infrastructure`
-6. Add message consumers in `{Name}.Worker` (if present)
-7. Document API in OpenAPI spec
-8. Add to Postman collection via Postman MCP
+1. **Register projects into the solution**:
+   ```bash
+   dotnet sln add src/Services/{Name}/{Name}.Api/{Name}.Api.csproj
+   dotnet sln add src/Services/{Name}/{Name}.Application/{Name}.Application.csproj
+   dotnet sln add src/Services/{Name}/{Name}.Domain/{Name}.Domain.csproj
+   dotnet sln add src/Services/{Name}/{Name}.Infrastructure/{Name}.Infrastructure.csproj
+   # If withWorker was true:
+   dotnet sln add src/Services/{Name}/{Name}.Worker/{Name}.Worker.csproj
+   # Tests:
+   dotnet sln add tests/{Name}.Tests.Unit/{Name}.Tests.Unit.csproj
+   dotnet sln add tests/{Name}.Tests.Integration/{Name}.Tests.Integration.csproj
+   ```
+2. Update `AGENTS.md` with actual ownership, contracts, state machine
+3. Add domain entities to `{Name}.Domain`
+4. Implement API controllers in `{Name}.Api/Controllers`
+5. Add application commands/queries in `{Name}.Application`
+6. Configure EF Core mappings in `{Name}.Infrastructure`
+7. Add message consumers in `{Name}.Worker` (if present)
+8. Document API in OpenAPI spec
+9. Add to Postman collection via Postman MCP
 
 ## References
 
