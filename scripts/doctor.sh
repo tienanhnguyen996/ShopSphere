@@ -40,9 +40,9 @@ check_version() {
 
 check_version "dotnet" "8\.0" "dotnet --version"
 check_version "node" "20\." "node --version"
-check_version "pnpm" "[0-9]\." "pnpm --version"
+check_version "pnpm" "[0-9]+" "pnpm --version"
 check_version "terraform" "1\." "terraform --version"
-check_version "docker" "[0-9]\." "docker --version"
+check_version "docker" "[0-9]+" "docker --version"
 
 echo ""
 
@@ -89,7 +89,9 @@ echo ""
 echo "🏗️  Checking Docker Compose infrastructure..."
 COMPOSE_FILE="deploy/compose/docker-compose.yml"
 
-if [ -f "$COMPOSE_FILE" ]; then
+if [ -n "$CI" ]; then
+  echo -e "${YELLOW}⚠️${NC}  Skipping Docker Compose running services check in CI"
+elif [ -f "$COMPOSE_FILE" ]; then
   if docker compose -f "$COMPOSE_FILE" ps --format json &> /dev/null; then
     # Check if services are running
     RUNNING=$(docker compose -f "$COMPOSE_FILE" ps --format json 2>/dev/null | jq -r '.[] | select(.State == "running") | .Name' | wc -l || echo "0")
