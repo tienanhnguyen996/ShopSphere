@@ -3,9 +3,10 @@
 
 $ErrorActionPreference = "Stop"
 
-$source = Join-Path $PSScriptRoot ".." ".agents" "skills"
-$claTarget = Join-Path $PSScriptRoot ".." ".claude" "skills"
-$agentTarget = Join-Path $PSScriptRoot ".." ".agent" "skills"
+$root = Split-Path $PSScriptRoot -Parent
+$source = Join-Path $root ".agents\skills"
+$claTarget = Join-Path $root ".claude\skills"
+$agentTarget = Join-Path $root ".agent\skills"
 
 if (-not (Test-Path $source)) {
     Write-Error "Source directory not found: $source"
