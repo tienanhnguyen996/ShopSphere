@@ -1,0 +1,47 @@
+{
+  "name": "ShopSphere",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:1-8.0",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "bash scripts/bootstrap.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "hashicorp.terraform"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[csharp]": {
+          "editor.defaultFormatter": "ms-dotnettools.csdevkit"
+        }
+      }
+    }
+  },
+  "forwardPorts": [5000, 5001, 5002, 5003, 5004, 5005, 1433, 5672, 15672, 6379],
+  "portsAttributes": {
+    "1433": {
+      "label": "SQL Server"
+    },
+    "5672": {
+      "label": "RabbitMQ"
+    },
+    "15672": {
+      "label": "RabbitMQ Management"
+    },
+    "6379": {
+      "label": "Redis"
+    }
+  },
+  "remoteUser": "vscode"
+}

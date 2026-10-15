@@ -1,0 +1,9 @@
+{
+  "enabledMcpjsonServers": [
+    "github",
+    "notion",
+    "context7",
+    "microsoft-learn",
+    "terraform"
+  ]
+}
