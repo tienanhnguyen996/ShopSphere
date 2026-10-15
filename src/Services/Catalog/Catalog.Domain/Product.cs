@@ -1,5 +1,6 @@
 using ShopSphere.BuildingBlocks.Common.Domain;
 using ShopSphere.Services.Catalog.Domain.Events;
+using ShopSphere.Services.Catalog.Domain.Exceptions;
 
 namespace ShopSphere.Services.Catalog.Domain;
 
@@ -24,6 +25,12 @@ public sealed class Product : AggregateRoot<Guid>, IVersionedEntity, IAuditableE
         SetDescription(description);
         Sku = sku ?? throw new ArgumentNullException(nameof(sku));
         Price = price ?? throw new ArgumentNullException(nameof(price));
+
+        if (price.Amount <= 0)
+        {
+            throw new DomainValidationException("Product price must be greater than zero.");
+        }
+
         Status = ProductStatus.Draft;
         PriceVersion = 1;
     }
@@ -47,6 +54,11 @@ public sealed class Product : AggregateRoot<Guid>, IVersionedEntity, IAuditableE
     public void UpdatePrice(Money newPrice)
     {
         ArgumentNullException.ThrowIfNull(newPrice);
+
+        if (newPrice.Amount <= 0)
+        {
+            throw new DomainValidationException("Product price must be greater than zero.");
+        }
 
         if (Status == ProductStatus.Discontinued)
         {

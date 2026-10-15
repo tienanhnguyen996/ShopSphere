@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShopSphere.BuildingBlocks.Persistence.Interceptors;
+using ShopSphere.Services.Catalog.Application.Common.Interfaces;
+using ShopSphere.Services.Catalog.Infrastructure.Caching;
 
 namespace ShopSphere.Services.Catalog.Infrastructure;
 
@@ -22,6 +24,19 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString)
                    .AddInterceptors(interceptor);
         });
+
+        services.AddScoped<ICatalogDbContext>(sp => sp.GetRequiredService<CatalogDbContext>());
+
+        var redisConnection = configuration.GetConnectionString("Redis")
+            ?? "localhost:6379";
+
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisConnection;
+            options.InstanceName = "ShopSphereCatalog:";
+        });
+
+        services.AddSingleton<ICacheService, DistributedCacheService>();
 
         return services;
     }
