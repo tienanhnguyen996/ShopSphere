@@ -23,7 +23,7 @@ public sealed class AuditSaveChangesInterceptor : SaveChangesInterceptor
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
-    private static void UpdateAuditableEntities(DbContext? context)
+    internal static void UpdateAuditableEntities(DbContext? context)
     {
         if (context is null)
         {
