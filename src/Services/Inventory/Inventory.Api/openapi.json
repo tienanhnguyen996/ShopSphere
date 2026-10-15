@@ -1,0 +1,138 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "ShopSphere Inventory Service API",
+    "description": "Microservice managing stock allocations, reservation holds, commit workflows, and intake adjustments.",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/v1/inventory/adjustments": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Adjust stock availability for warehouse intake or inventory corrections",
+        "operationId": "AdjustStock",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockAdjustmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/inventory/{sku}": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "Get real-time stock allocation breakdown for a product SKU",
+        "operationId": "GetStockBySku",
+        "parameters": [
+          {
+            "name": "sku",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "StockAdjustmentRequest": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "StockResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sku": {
+            "type": "string",
+            "nullable": true
+          },
+          "quantityAvailable": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantityHeld": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quantityCommitted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalStock": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lastModifiedUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}
