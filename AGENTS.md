@@ -22,6 +22,8 @@
 
 **Expiry is a state transition**: Reservation expiry checks happen inside the transaction that commits/releases stock, not just a background job deleting a cache entry.
 
+**API documentation**: When adding or modifying an API endpoint, document it in the service's OpenAPI spec AND add it to the Postman collection via the Postman MCP server. Every endpoint must have a working Postman request with example payloads.
+
 ## Frontend Rules
 
 **Gateway only**: Frontend calls the API gateway/BFF, never individual services directly. YARP gateway routes to services.
