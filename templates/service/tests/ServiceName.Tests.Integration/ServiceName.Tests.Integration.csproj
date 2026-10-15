@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>ShopSphere.Services.ServiceName.Tests.Integration</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Services\ServiceName\ServiceName.Api\ServiceName.Api.csproj" />
+    <ProjectReference Include="..\..\src\Services\ServiceName\ServiceName.Infrastructure\ServiceName.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
