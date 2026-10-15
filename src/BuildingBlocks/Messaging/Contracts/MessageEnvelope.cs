@@ -24,11 +24,11 @@ public record MessageEnvelope<TPayload>
         return new MessageEnvelope<TPayload>
         {
             MessageId = messageId,
-            CorrelationId = correlationId ?? messageId,
-            CausationId = causationId ?? messageId,
+            CorrelationId = correlationId.HasValue && correlationId.Value != Guid.Empty ? correlationId.Value : Guid.NewGuid(),
+            CausationId = causationId.HasValue && causationId.Value != Guid.Empty ? causationId.Value : messageId,
             OccurredAtUtc = DateTime.UtcNow,
             ContractVersion = contractVersion,
-            BusinessId = businessId,
+            BusinessId = businessId ?? string.Empty,
             Payload = payload
         };
     }
