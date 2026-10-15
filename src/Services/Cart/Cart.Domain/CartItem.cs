@@ -5,7 +5,7 @@ namespace ShopSphere.Services.Cart.Domain;
 
 public record CartItem
 {
-    private static readonly Regex SkuRegex = new("^[A-Z0-9-_]+$", RegexOptions.Compiled);
+    private static readonly Regex _skuRegex = new("^[A-Z0-9-_]+$", RegexOptions.Compiled);
 
     public string Sku { get; init; }
     public int Quantity { get; init; }
@@ -18,7 +18,7 @@ public record CartItem
         }
 
         var normalizedSku = sku.Trim().ToUpperInvariant();
-        if (!SkuRegex.IsMatch(normalizedSku))
+        if (!_skuRegex.IsMatch(normalizedSku))
         {
             throw new DomainValidationException("CartItem.InvalidSku", $"SKU '{sku}' must contain only uppercase alphanumeric characters, dashes, or underscores.");
         }

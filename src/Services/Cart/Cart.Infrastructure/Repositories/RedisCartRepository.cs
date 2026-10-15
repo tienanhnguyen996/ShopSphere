@@ -11,7 +11,7 @@ public class RedisCartRepository : ICartRepository
     private readonly IDistributedCache _cache;
     private readonly ILogger<RedisCartRepository> _logger;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -40,7 +40,7 @@ public class RedisCartRepository : ICartRepository
                 return new Cart.Domain.Cart(customerId);
             }
 
-            var cart = JsonSerializer.Deserialize<Cart.Domain.Cart>(data, JsonOptions);
+            var cart = JsonSerializer.Deserialize<Cart.Domain.Cart>(data, _jsonOptions);
             return cart ?? new Cart.Domain.Cart(customerId);
         }
         catch (JsonException ex)
@@ -69,7 +69,7 @@ public class RedisCartRepository : ICartRepository
         ArgumentNullException.ThrowIfNull(cart);
 
         var key = GetCacheKey(cart.CustomerId);
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(cart, JsonOptions);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(cart, _jsonOptions);
 
         var entryOptions = new DistributedCacheEntryOptions
         {

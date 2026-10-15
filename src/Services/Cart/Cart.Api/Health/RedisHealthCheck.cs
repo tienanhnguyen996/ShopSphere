@@ -6,7 +6,7 @@ namespace ShopSphere.Services.Cart.Api.Health;
 public class RedisHealthCheck : IHealthCheck
 {
     private readonly IDistributedCache _cache;
-    private const string HealthKey = "cart:healthcheck:ping";
+    private const string _healthKey = "cart:healthcheck:ping";
 
     public RedisHealthCheck(IDistributedCache cache)
     {
@@ -18,12 +18,12 @@ public class RedisHealthCheck : IHealthCheck
         try
         {
             var pingBytes = "pong"u8.ToArray();
-            await _cache.SetAsync(HealthKey, pingBytes, new DistributedCacheEntryOptions
+            await _cache.SetAsync(_healthKey, pingBytes, new DistributedCacheEntryOptions
             {
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(10)
             }, cancellationToken);
 
-            var readBack = await _cache.GetAsync(HealthKey, cancellationToken);
+            var readBack = await _cache.GetAsync(_healthKey, cancellationToken);
             if (readBack is null || readBack.Length == 0)
             {
                 return HealthCheckResult.Degraded("Redis read back empty payload during health check.");
