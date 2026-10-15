@@ -12,7 +12,7 @@ public class CatalogHttpClient : ICatalogClient
     private readonly HttpClient _httpClient;
     private readonly ILogger<CatalogHttpClient> _logger;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -51,7 +51,7 @@ public class CatalogHttpClient : ICatalogClient
                     Error.Failure("Cart.CatalogUnavailable", "Catalog service is currently unavailable."));
             }
 
-            var product = await response.Content.ReadFromJsonAsync<CatalogProductDto>(JsonOptions, ct);
+            var product = await response.Content.ReadFromJsonAsync<CatalogProductDto>(_jsonOptions, ct);
             if (product is null)
             {
                 _logger.LogWarning("Catalog service returned empty payload for SKU {Sku}", sku);
