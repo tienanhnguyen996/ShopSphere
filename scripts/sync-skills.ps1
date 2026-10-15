@@ -12,13 +12,24 @@ if (-not (Test-Path $source)) {
     exit 1
 }
 
-# Remove existing targets
-if (Test-Path $claTarget) { Remove-Item -Recurse -Force $claTarget }
-if (Test-Path $agentTarget) { Remove-Item -Recurse -Force $agentTarget }
+# Create parent directories if missing
+$claParent = Split-Path $claTarget -Parent
+$agentParent = Split-Path $agentTarget -Parent
+if (-not (Test-Path $claParent)) { New-Item -ItemType Directory -Path $claParent -Force | Out-Null }
+if (-not (Test-Path $agentParent)) { New-Item -ItemType Directory -Path $agentParent -Force | Out-Null }
 
-# Copy to both targets
-Copy-Item -Recurse $source $claTarget
-Copy-Item -Recurse $source $agentTarget
+# Use robocopy for efficient mirroring (only changed files)
+$null = robocopy $source $claTarget /MIR /XO /NJH /NJS /NFL /NDL
+if ($LASTEXITCODE -gt 7) {
+    Write-Error "robocopy failed for .claude/skills (exit code $LASTEXITCODE)"
+    exit $LASTEXITCODE
+}
+
+$null = robocopy $source $agentTarget /MIR /XO /NJH /NJS /NFL /NDL
+if ($LASTEXITCODE -gt 7) {
+    Write-Error "robocopy failed for .agent/skills (exit code $LASTEXITCODE)"
+    exit $LASTEXITCODE
+}
 
 Write-Output "Skills synced from $source"
 Write-Output "  -> $claTarget"
