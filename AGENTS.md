@@ -50,6 +50,10 @@
 
 **Ask before destructive actions**: Before `git push --force`, `git reset --hard`, `rm -rf`, `DROP TABLE`, ask for confirmation. These are already denied in `.claude/settings.json` but check regardless.
 
+**Mandatory Task in Commit**: Every commit must follow Conventional Commits and include the Notion task ID: `<type>(<scope>): [Task-XX] <description>`. Example: `feat(catalog): [Task-12] implement product aggregate root`. See `.agents/rules/commit-convention.md`.
+
+**Lint before commit**: All code must pass style and formatting checks (`bash scripts/lint.sh`). Use `bash scripts/fix-lint.sh` (or `./scripts/fix-lint.ps1`) to automatically format .NET and frontend code before committing.
+
 ## Development Process
 
 1. **Read requirements**: Check `docs/requirements/` for architectural patterns
@@ -57,8 +61,8 @@
 3. **Write spec** (if new feature): API, messages, state machine, failure handling
 4. **Implement**: Follow existing patterns, respect service boundaries
 5. **Test**: Unit + integration (Testcontainers for DB/broker), failure paths
-6. **Run doctor**: `bash scripts/doctor.sh` before committing
-7. **Commit**: Follow conventional commits, reference issue/story if applicable
+6. **Run lint and doctor**: `bash scripts/lint.sh` (or `bash scripts/fix-lint.sh`) and `bash scripts/doctor.sh` before committing
+7. **Commit**: Conventional commit with mandatory task: `<type>(<scope>): [Task-XX] <description>`
 8. **PR**: Use template checklist, include test plan
 
 ## Key References

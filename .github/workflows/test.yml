@@ -1,0 +1,110 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/pull_request_template.md"
+      - "LICENSE"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/pull_request_template.md"
+      - "LICENSE"
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      catalog: ${{ steps.filter.outputs.catalog }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            catalog:
+              - 'src/Services/Catalog/**'
+              - 'tests/Catalog.Tests.Unit/**'
+              - 'tests/Catalog.Tests.Integration/**'
+              - 'src/BuildingBlocks/**'
+              - 'Directory.Build.props'
+              - 'Directory.Packages.props'
+              - 'global.json'
+              - 'ShopSphere.sln'
+              - '.github/workflows/test.yml'
+            web:
+              - 'src/Web/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/test.yml'
+
+  test-catalog:
+    name: Catalog Tests (Unit & Integration)
+    needs: changes
+    if: needs.changes.outputs.catalog == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build tests
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run Unit Tests
+        run: dotnet test tests/Catalog.Tests.Unit/Catalog.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
+
+      - name: Run Integration Tests
+        run: dotnet test tests/Catalog.Tests.Integration/Catalog.Tests.Integration.csproj --no-build --configuration Release --verbosity normal
+
+  test-web:
+    name: Frontend Web Typecheck & Build
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Typecheck and Build Web
+        run: pnpm --dir src/Web build
+
+  test-status:
+    name: Tests Status
+    needs: [changes, test-catalog, test-web]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Status
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1

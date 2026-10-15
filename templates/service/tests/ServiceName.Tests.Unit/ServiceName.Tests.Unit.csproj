@@ -8,6 +8,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Moq" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Services\ServiceName\ServiceName.Domain\ServiceName.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\ServiceName\ServiceName.Application\ServiceName.Application.csproj" />
   </ItemGroup>

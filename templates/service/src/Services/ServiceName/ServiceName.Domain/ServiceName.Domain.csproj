@@ -5,4 +5,7 @@
     <RootNamespace>ShopSphere.Services.ServiceName.Domain</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.csproj" />
+  </ItemGroup>
 </Project>

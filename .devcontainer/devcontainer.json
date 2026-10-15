@@ -1,6 +1,8 @@
 {
   "name": "ShopSphere",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:1-8.0",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "20"
