@@ -246,13 +246,25 @@ docker compose -f deploy/compose/docker-compose.yml restart
 
 ### Skills not found
 
-```bash
-# Re-run bootstrap
-bash scripts/bootstrap.sh
+#### Symlink Method (Recommended)
 
-# Or manually sync (Windows)
+```bash
+# Git Bash / WSL
+ln -s ../.agents/skills .claude/skills
+
+# PowerShell (requires Developer Mode or admin)
+cmd /c mklink /D .claude\skills .agents\skills
+```
+
+#### Fallback: Sync Script (Windows)
+
+If symlinks fail:
+
+```bash
 pwsh scripts/sync-skills.ps1
 ```
+
+Re-run on every skill update. Or add to `bootstrap.sh`.
 
 ## Contributing
 
