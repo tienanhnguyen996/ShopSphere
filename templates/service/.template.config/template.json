@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "ShopSphere Team",
+  "classifications": ["ShopSphere", "Microservice", "WebAPI"],
+  "identity": "ShopSphere.Service.Template",
+  "name": "ShopSphere Microservice",
+  "shortName": "shopsphere-service",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "ServiceName",
+  "preferNameDirectory": false,
+  "symbols": {
+    "port": {
+      "type": "parameter",
+      "datatype": "integer",
+      "defaultValue": "5100",
+      "replaces": "5100",
+      "description": "HTTP port for the service"
+    },
+    "withWorker": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include background worker and message consumers"
+    },
+    "withSaga": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "description": "Include saga orchestration infrastructure"
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "condition": "(!withWorker)",
+          "exclude": ["**/Worker/**"]
+        },
+        {
+          "condition": "(!withSaga)",
+          "exclude": ["**/Saga/**"]
+        }
+      ]
+    }
+  ],
+  "postActions": [
+    {
+      "description": "Restore NuGet packages",
+      "manualInstructions": [
+        {
+          "text": "Run 'dotnet restore'"
+        }
+      ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}

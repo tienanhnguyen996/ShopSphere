@@ -54,12 +54,15 @@ else
 fi
 
 echo ""
-echo "🎯 Installing optional git hooks..."
+echo "🎯 Installing git hooks..."
 if [ -d ".git" ]; then
-  # Uncomment to enable pre-commit hook
-  # cp scripts/pre-commit.sh .git/hooks/pre-commit
-  # chmod +x .git/hooks/pre-commit
-  echo "⏭️  Git hooks disabled by default"
+  cp scripts/verify-commit-msg.sh .git/hooks/commit-msg 2>/dev/null || true
+  chmod +x .git/hooks/commit-msg 2>/dev/null || true
+  echo "✅ commit-msg hook installed (enforces [Task-XX] in commits)"
+
+  cp scripts/verify-pre-commit.sh .git/hooks/pre-commit 2>/dev/null || true
+  chmod +x .git/hooks/pre-commit 2>/dev/null || true
+  echo "✅ pre-commit hook installed (enforces lint & formatting checks)"
 else
   echo "⏭️  Not a git repository yet"
 fi

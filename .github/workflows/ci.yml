@@ -3,11 +3,66 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/pull_request_template.md"
+      - "LICENSE"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/pull_request_template.md"
+      - "LICENSE"
 
 jobs:
-  build-test:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      dotnet: ${{ steps.filter.outputs.dotnet }}
+      web: ${{ steps.filter.outputs.web }}
+      devcontainer: ${{ steps.filter.outputs.devcontainer }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            dotnet:
+              - '**/*.cs'
+              - '**/*.csproj'
+              - '**/*.sln'
+              - 'Directory.Build.props'
+              - 'Directory.Packages.props'
+              - 'global.json'
+              - '.github/workflows/ci.yml'
+            web:
+              - 'src/Web/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/ci.yml'
+            devcontainer:
+              - '.devcontainer/**'
+              - 'scripts/bootstrap.sh'
+              - '.github/workflows/ci.yml'
+            infra:
+              - 'scripts/**'
+              - 'deploy/**'
+              - '.env.example'
+              - '.mcp.json'
+              - '.github/workflows/ci.yml'
+
+  build-dotnet:
+    name: Build .NET Solution
+    needs: changes
+    if: needs.changes.outputs.dotnet == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,15 +73,39 @@ jobs:
           global-json-file: global.json
 
       - name: Restore dependencies
-        run: dotnet restore || echo "No .NET projects yet"
+        run: dotnet restore
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release || echo "No .NET projects yet"
+        run: dotnet build --no-restore --configuration Release
 
-      - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal || echo "No tests yet"
+  build-web:
+    name: Build Frontend Web
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Web
+        run: pnpm --dir src/Web build
 
   devcontainer-check:
+    name: Dev Container Build Check
+    needs: changes
+    if: needs.changes.outputs.devcontainer == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,3 +118,48 @@ jobs:
             node --version
             docker --version
             echo "✅ Dev container builds successfully"
+
+  doctor-check:
+    name: Environment Health Check (Doctor)
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Prepare environment configuration
+        run: cp .env.example .env
+
+      - name: Run bootstrap
+        run: bash scripts/bootstrap.sh
+
+      - name: Run doctor check
+        run: bash scripts/doctor.sh
+
+  ci-status:
+    name: CI Status
+    needs: [changes, build-dotnet, build-web, devcontainer-check, doctor-check]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Status
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
