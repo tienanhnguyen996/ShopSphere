@@ -1,0 +1,38 @@
+## Summary
+Complete monorepo foundation setup for ShopSphere e-commerce platform.
+
+**What's included:**
+- .NET 8.0 with central package management (MassTransit 8.3.3, EF Core 8.0.x)
+- Dev container with all tools (SDK, Node, Docker, Terraform, gh CLI)
+- MCP servers: GitHub, Notion, Context7, Microsoft Learn, Terraform, Postman
+- Vendored Superpowers and skill-creator skills with provenance
+- Architecture rules in AGENTS.md (service boundaries, messaging, consistency)
+- Docker Compose infrastructure (SQL Server, RabbitMQ, Redis)
+- Bootstrap and doctor health-check scripts
+- CI workflow (build + dev container verification)
+
+## Architecture Checklist
+- [x] Service boundaries documented (each owns data/schema)
+- [x] Message envelope format specified (MessageId, CorrelationId, CausationId)
+- [x] Idempotency pattern documented
+- [x] Transactional outbox pattern documented
+- [x] Timeout handling guidance (unknown vs failure)
+- [x] Late events handling documented
+- [x] Concurrency control approach (EF Core tokens)
+- [x] Postman MCP integration for API documentation
+
+## Testing
+Second developer can:
+1. Clone repo
+2. Open in dev container
+3. Copy .env.example to .env, add tokens
+4. Run bash scripts/doctor.sh
+5. Start infra: docker compose -f deploy/compose/docker-compose.yml up -d
+6. Begin service implementation
+
+## Known Issues
+- CODEOWNERS line 6 has placeholder TEAMMATE_USERNAME (update when known)
+- Node 22.x instead of 20.x in current environment (not blocking)
+- jq, pnpm, terraform not in PATH (install if needed)
+
+Generated with Claude Code
