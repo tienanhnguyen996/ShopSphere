@@ -189,8 +189,9 @@ public class CqrsHandlerAndValidationTests
         var productsMock = MockDbSetExtensions.CreateMockDbSet(new List<Product>());
         var dbContextMock = new Mock<ICatalogDbContext>();
         dbContextMock.Setup(x => x.Products).Returns(productsMock.Object);
+        var cacheServiceMock = new Mock<ICacheService>();
 
-        var handler = new UpdateProductPriceCommandHandler(dbContextMock.Object, _updatePriceValidator);
+        var handler = new UpdateProductPriceCommandHandler(dbContextMock.Object, _updatePriceValidator, cacheServiceMock.Object);
         var command = new UpdateProductPriceCommand("NONEXISTENT", 99.99m);
 
         // Act
@@ -225,7 +226,9 @@ public class CqrsHandlerAndValidationTests
         dbContextMock.Setup(x => x.OutboxMessages).Returns(outboxMessagesMock.Object);
         dbContextMock.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
-        var handler = new UpdateProductPriceCommandHandler(dbContextMock.Object, _updatePriceValidator);
+        var cacheServiceMock = new Mock<ICacheService>();
+
+        var handler = new UpdateProductPriceCommandHandler(dbContextMock.Object, _updatePriceValidator, cacheServiceMock.Object);
         var command = new UpdateProductPriceCommand("KB-RGB-001", 125m, "USD");
 
         // Act
@@ -248,6 +251,9 @@ public class CqrsHandlerAndValidationTests
         outboxMessages.Should().ContainSingle(o =>
             o.Type.Contains("ProductPriceChangedDomainEvent") &&
             o.Content.Contains("125"));
+
+        // Verify cache was invalidated
+        cacheServiceMock.Verify(x => x.RemoveAsync("catalog:product:KB-RGB-001", It.IsAny<CancellationToken>()), Times.Once);
 
         dbContextMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
