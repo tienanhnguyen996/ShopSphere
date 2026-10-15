@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShopSphere.BuildingBlocks.Persistence.Interceptors;
+using ShopSphere.BuildingBlocks.Resilience;
 using ShopSphere.Services.Payment.Application.Common.Interfaces;
+using ShopSphere.Services.Payment.Infrastructure.Clients;
 
 namespace ShopSphere.Services.Payment.Infrastructure;
 
@@ -25,6 +27,8 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IPaymentDbContext>(sp => sp.GetRequiredService<PaymentDbContext>());
+
+        services.AddResilientHttpClient<IPaymentProviderClient, MockPaymentProviderClient>();
 
         return services;
     }
