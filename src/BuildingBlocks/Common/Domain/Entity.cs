@@ -16,6 +16,16 @@ public abstract class Entity<TId> where TId : notnull
             throw new ArgumentException("Entity identifier cannot be default/empty.", nameof(id));
         }
 
+        if (id is Guid g && g == Guid.Empty)
+        {
+            throw new ArgumentException("Entity identifier cannot be default/empty.", nameof(id));
+        }
+
+        if (id is string s && string.IsNullOrWhiteSpace(s))
+        {
+            throw new ArgumentException("Entity identifier cannot be empty or whitespace.", nameof(id));
+        }
+
         Id = id;
     }
 
