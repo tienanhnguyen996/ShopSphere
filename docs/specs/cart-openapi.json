@@ -11,10 +11,32 @@
         "tags": [
           "Cart"
         ],
+        "summary": "Retrieve the current customer's cart",
         "operationId": "GetCart",
+        "parameters": [
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "description": "Customer identifier owning the cart.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - Missing or invalid customer ID"
           }
         }
       },
@@ -22,10 +44,25 @@
         "tags": [
           "Cart"
         ],
+        "summary": "Clear all items from the customer's cart",
         "operationId": "ClearCart",
+        "parameters": [
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "description": "Customer identifier owning the cart.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request - Missing or invalid customer ID"
           }
         }
       }
@@ -35,7 +72,19 @@
         "tags": [
           "Cart"
         ],
+        "summary": "Add an item or increment quantity in the cart",
         "operationId": "AddItemToCart",
+        "parameters": [
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "description": "Customer identifier owning the cart.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -48,7 +97,20 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -58,12 +120,22 @@
         "tags": [
           "Cart"
         ],
+        "summary": "Update quantity of a specific SKU in the cart",
         "operationId": "UpdateCartItemQuantity",
         "parameters": [
           {
             "name": "sku",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "description": "Customer identifier owning the cart.",
             "schema": {
               "type": "string"
             }
@@ -81,7 +153,20 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       },
@@ -89,6 +174,7 @@
         "tags": [
           "Cart"
         ],
+        "summary": "Remove a specific SKU from the cart",
         "operationId": "RemoveCartItem",
         "parameters": [
           {
@@ -98,11 +184,26 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "description": "Customer identifier owning the cart.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -112,10 +213,35 @@
         "tags": [
           "Cart"
         ],
+        "summary": "Generate verified checkout price quote against Catalog Service",
         "operationId": "GetCartCheckoutQuote",
+        "parameters": [
+          {
+            "name": "X-Customer-Id",
+            "in": "header",
+            "required": true,
+            "description": "Customer identifier owning the cart.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutQuoteDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "503": {
+            "description": "Catalog Service Unavailable"
           }
         }
       }
@@ -127,14 +253,17 @@
         "type": "object",
         "properties": {
           "sku": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "quantity": {
             "type": "integer",
             "format": "int32"
           }
         },
+        "required": [
+          "sku",
+          "quantity"
+        ],
         "additionalProperties": false
       },
       "UpdateCartItemQuantityRequest": {
@@ -145,6 +274,151 @@
             "format": "int32"
           }
         },
+        "required": [
+          "quantity"
+        ],
+        "additionalProperties": false
+      },
+      "CartItemDto": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "sku",
+          "quantity"
+        ],
+        "additionalProperties": false
+      },
+      "CartDto": {
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartItemDto"
+            }
+          },
+          "totalQuantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastModifiedUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "customerId",
+          "items",
+          "totalQuantity",
+          "createdAtUtc",
+          "lastModifiedUtc"
+        ],
+        "additionalProperties": false
+      },
+      "CheckoutQuoteItemDto": {
+        "type": "object",
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitPrice": {
+            "type": "number",
+            "format": "double"
+          },
+          "lineTotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "priceVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sku",
+          "productName",
+          "quantity",
+          "unitPrice",
+          "lineTotal",
+          "currency",
+          "priceVersion",
+          "isActive"
+        ],
+        "additionalProperties": false
+      },
+      "CheckoutQuoteDto": {
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutQuoteItemDto"
+            }
+          },
+          "subtotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "priceVersions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "isValid": {
+            "type": "boolean"
+          },
+          "validationErrors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "customerId",
+          "items",
+          "subtotal",
+          "currency",
+          "priceVersions",
+          "isValid",
+          "validationErrors"
+        ],
         "additionalProperties": false
       }
     }

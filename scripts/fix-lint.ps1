@@ -4,6 +4,10 @@ $ErrorActionPreference = "Continue"
 Write-Host "ShopSphere Lint and Format Fixer" -ForegroundColor Cyan
 Write-Host "================================"
 
+if (Test-Path "$env:USERPROFILE\.dotnet") {
+    $env:PATH = "$env:USERPROFILE\.dotnet;$env:PATH"
+}
+
 # 1. .NET Format Fix
 Write-Host "`nFixing .NET formatting..." -ForegroundColor Cyan
 $dotnetVersion = dotnet --version 2>$null
