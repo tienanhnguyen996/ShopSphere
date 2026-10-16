@@ -3,9 +3,11 @@ using ShopSphere.BuildingBlocks.Outbox;
 using ShopSphere.BuildingBlocks.Persistence.Extensions;
 using ShopSphere.Services.Catalog.Domain;
 
+using ShopSphere.Services.Catalog.Application.Common.Interfaces;
+
 namespace ShopSphere.Services.Catalog.Infrastructure;
 
-public class CatalogDbContext : DbContext
+public class CatalogDbContext : DbContext, ICatalogDbContext
 {
     public const string DefaultSchema = "catalog";
 
