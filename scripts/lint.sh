@@ -18,6 +18,14 @@ echo "=================================="
 # 1. .NET Format Check
 echo ""
 echo "📦 Checking .NET formatting..."
+if [ -d "$LOCALAPPDATA/Microsoft/dotnet" ]; then
+  export PATH="$LOCALAPPDATA/Microsoft/dotnet:$PATH"
+elif [ -d "/c/Users/tiena/AppData/Local/Microsoft/dotnet" ]; then
+  export PATH="/c/Users/tiena/AppData/Local/Microsoft/dotnet:$PATH"
+elif [ -d "$HOME/.dotnet" ]; then
+  export PATH="$HOME/.dotnet:$PATH"
+fi
+
 if dotnet --version 2>/dev/null | grep -q "^8\.0"; then
   if dotnet format --verify-no-changes; then
     echo -e "${GREEN}✅${NC} .NET format check passed"
