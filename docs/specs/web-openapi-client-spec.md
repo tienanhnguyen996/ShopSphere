@@ -64,6 +64,6 @@ File: `src/Web/src/api/index.ts`
 2. **Typecheck & Build**: `pnpm --dir src/Web run build` (`tsc && vite build`) passes with zero TypeScript diagnostics.
 3. **Lint & Code Style**: `pnpm --dir src/Web run lint` and `powershell -ExecutionPolicy Bypass -File scripts\lint.ps1` pass cleanly.
 4. **Unit Tests**: Unit tests in `src/Web/src/api/client.test.ts` verify:
-   - Base URL configuration defaults to `/api`.
+   - Base URL configuration defaults to empty string (`''`) since OpenAPI paths start with `/api`.
    - `X-Correlation-Id` header is injected on requests.
    - Client instances can be imported and initialized properly.

@@ -18,7 +18,7 @@ export { CancelablePromise, CancelError } from './generated/catalog/core/Cancela
 export type { OpenAPIConfig } from './generated/catalog/core/OpenAPI';
 
 // Catalog Service and DTOs
-export { ProductsService } from './generated/catalog';
+export { ProductsService, ProductsService as catalogApi } from './generated/catalog';
 export type {
   CreateProductRequest,
   PagedProductResult,
@@ -27,7 +27,7 @@ export type {
 } from './generated/catalog';
 
 // Cart Service and DTOs
-export { CartService } from './generated/cart';
+export { CartService, CartService as cartApi } from './generated/cart';
 export type {
   AddCartItemRequest,
   CartDto,
@@ -38,9 +38,9 @@ export type {
 } from './generated/cart';
 
 // Inventory Service and DTOs
-export { InventoryService } from './generated/inventory';
+export { InventoryService, InventoryService as inventoryApi } from './generated/inventory';
 export type { StockAdjustmentRequest, StockResponse } from './generated/inventory';
 
 // Payment Service and DTOs
-export { PaymentService } from './generated/payment';
+export { PaymentService, PaymentService as paymentApi } from './generated/payment';
 export type { PaymentAttemptResponse, ProviderWebhookPayload } from './generated/payment';

@@ -52,7 +52,7 @@ export function getAuthToken(): string | undefined {
  */
 export function configureApiClients(): void {
   for (const config of apiConfigs) {
-    config.BASE = '/api';
+    config.BASE = '';
     config.WITH_CREDENTIALS = true;
     config.CREDENTIALS = 'include';
     config.HEADERS = async () => ({

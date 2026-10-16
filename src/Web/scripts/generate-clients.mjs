@@ -44,6 +44,8 @@ async function main() {
     console.log(`  Input:  ${service.input}`);
     console.log(`  Output: ${service.output}`);
 
+    fs.rmSync(service.output, { recursive: true, force: true });
+
     await generate({
       input: service.input,
       output: service.output,
