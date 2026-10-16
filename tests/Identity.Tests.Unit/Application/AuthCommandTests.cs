@@ -9,6 +9,7 @@ using ShopSphere.Services.Identity.Application.Auth.Commands.RevokeToken;
 using ShopSphere.Services.Identity.Application.Auth.Queries.GetCurrentUser;
 using ShopSphere.Services.Identity.Application.Common.Interfaces;
 using ShopSphere.Services.Identity.Application.Common.Security;
+using ShopSphere.Services.Identity.Application.Common.Services;
 using ShopSphere.Services.Identity.Application.Roles.Queries.GetRoles;
 using ShopSphere.Services.Identity.Application.Users.Commands.AssignRole;
 using ShopSphere.Services.Identity.Application.Users.Commands.RemoveRole;
@@ -24,6 +25,7 @@ public class AuthCommandTests
     private readonly Mock<IIdentityDbContext> _dbContextMock;
     private readonly Mock<IJwtTokenGenerator> _tokenGeneratorMock;
     private readonly Mock<IPasswordHashService> _passwordHashMock;
+    private readonly IUserRolePermissionResolver _rolePermissionResolver;
 
     private readonly List<User> _users;
     private readonly List<Role> _roles;
@@ -63,6 +65,8 @@ public class AuthCommandTests
         _dbContextMock.Setup(x => x.RefreshTokens).Returns(refreshTokensMock.Object);
         _dbContextMock.Setup(x => x.OutboxMessages).Returns(outboxMessagesMock.Object);
         _dbContextMock.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        _rolePermissionResolver = new UserRolePermissionResolver(_dbContextMock.Object);
     }
 
     #region Register Tests
@@ -88,6 +92,7 @@ public class AuthCommandTests
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
             _passwordHashMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new RegisterCommand("newuser@shopsphere.local", "Password123!", "Jane Doe");
@@ -121,6 +126,7 @@ public class AuthCommandTests
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
             _passwordHashMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new RegisterCommand("not-an-email", "123", "");
@@ -146,6 +152,7 @@ public class AuthCommandTests
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
             _passwordHashMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new RegisterCommand("existing@shopsphere.local", "Password123!", "Another Name");
@@ -193,6 +200,7 @@ public class AuthCommandTests
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
             _passwordHashMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new LoginCommand("user@shopsphere.local", "Password123!");
@@ -216,6 +224,7 @@ public class AuthCommandTests
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
             _passwordHashMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new LoginCommand("nonexistent@shopsphere.local", "Password123!");
@@ -244,6 +253,7 @@ public class AuthCommandTests
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
             _passwordHashMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new LoginCommand("user@shopsphere.local", "WrongPassword");
@@ -273,6 +283,7 @@ public class AuthCommandTests
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
             _passwordHashMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new LoginCommand("user@shopsphere.local", "Password123!");
@@ -312,6 +323,7 @@ public class AuthCommandTests
         var handler = new RefreshTokenCommandHandler(
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new RefreshTokenCommand(rawToken);
@@ -354,6 +366,7 @@ public class AuthCommandTests
         var handler = new RefreshTokenCommandHandler(
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new RefreshTokenCommand(rawCompromisedToken);
@@ -388,6 +401,7 @@ public class AuthCommandTests
         var handler = new RefreshTokenCommandHandler(
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new RefreshTokenCommand(rawToken);
@@ -409,6 +423,7 @@ public class AuthCommandTests
         var handler = new RefreshTokenCommandHandler(
             _dbContextMock.Object,
             _tokenGeneratorMock.Object,
+            _rolePermissionResolver,
             validator);
 
         var command = new RefreshTokenCommand("non-existent-token");
@@ -491,7 +506,7 @@ public class AuthCommandTests
         _userRoles.Add(new UserRole(user.Id, role.Id));
         _rolePermissions.Add(new RolePermission(role.Id, perm.Id));
 
-        var handler = new GetCurrentUserQueryHandler(_dbContextMock.Object);
+        var handler = new GetCurrentUserQueryHandler(_dbContextMock.Object, _rolePermissionResolver);
         var query = new GetCurrentUserQuery(user.Id);
 
         // Act
@@ -509,7 +524,7 @@ public class AuthCommandTests
     public async Task GetCurrentUser_WhenUserNotFound_ShouldReturnNotFound()
     {
         // Arrange
-        var handler = new GetCurrentUserQueryHandler(_dbContextMock.Object);
+        var handler = new GetCurrentUserQueryHandler(_dbContextMock.Object, _rolePermissionResolver);
         var query = new GetCurrentUserQuery(Guid.NewGuid());
 
         // Act
@@ -585,15 +600,25 @@ public class AuthCommandTests
     }
 
     [Fact]
-    public async Task GetUsers_ShouldReturnPaginatedUsers()
+    public async Task GetUsers_ShouldReturnPaginatedUsersWithBatchResolution()
     {
         // Arrange
+        var role = Role.Create(Guid.NewGuid(), "Customer", "Customer Role");
+        var perm = Permission.Create(Guid.NewGuid(), "catalog:read", "Read catalog");
+        role.AddPermission(perm.Id);
+        _roles.Add(role);
+        _permissions.Add(perm);
+        _rolePermissions.Add(new RolePermission(role.Id, perm.Id));
+
         for (int i = 1; i <= 5; i++)
         {
-            _users.Add(User.Create(Guid.NewGuid(), $"user{i}@shopsphere.local", "hash", $"User {i}"));
+            var u = User.Create(Guid.NewGuid(), $"user{i}@shopsphere.local", "hash", $"User {i}");
+            u.AssignRole(role.Id);
+            _users.Add(u);
+            _userRoles.Add(new UserRole(u.Id, role.Id));
         }
 
-        var handler = new GetUsersQueryHandler(_dbContextMock.Object);
+        var handler = new GetUsersQueryHandler(_dbContextMock.Object, _rolePermissionResolver);
         var query = new GetUsersQuery(Page: 1, PageSize: 3);
 
         // Act
@@ -605,6 +630,11 @@ public class AuthCommandTests
         result.Value.TotalCount.Should().Be(5);
         result.Value.Page.Should().Be(1);
         result.Value.PageSize.Should().Be(3);
+        result.Value.Items.Should().AllSatisfy(item =>
+        {
+            item.Roles.Should().Contain("Customer");
+            item.Permissions.Should().Contain("catalog:read");
+        });
     }
 
     [Fact]

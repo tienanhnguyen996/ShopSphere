@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ShopSphere.BuildingBlocks.Common.Results;
 using ShopSphere.Services.Identity.Application.Common.Interfaces;
-using ShopSphere.Services.Identity.Domain;
 
 namespace ShopSphere.Services.Identity.Application.Users.Commands.AssignRole;
 
@@ -17,6 +16,7 @@ public class AssignRoleCommandHandler
     public async Task<Result> HandleAsync(AssignRoleCommand command, CancellationToken ct = default)
     {
         var user = await _dbContext.Users
+            .Include(u => u.UserRoles)
             .FirstOrDefaultAsync(u => u.Id == command.UserId, ct);
 
         if (user is null)
@@ -37,14 +37,6 @@ public class AssignRoleCommandHandler
         }
 
         user.AssignRole(command.RoleId);
-
-        var userRoleExists = await _dbContext.UserRoles
-            .AnyAsync(ur => ur.UserId == command.UserId && ur.RoleId == command.RoleId, ct);
-
-        if (!userRoleExists)
-        {
-            _dbContext.UserRoles.Add(new UserRole(command.UserId, command.RoleId));
-        }
 
         await _dbContext.SaveChangesAsync(ct);
 
