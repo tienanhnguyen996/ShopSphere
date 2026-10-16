@@ -144,10 +144,8 @@ public static class IdentityDbSeeder
 
         // 3. Seed Default Administrator
         var normalizedAdminEmail = adminEmail.Trim().ToLowerInvariant();
-        var existingUsers = await context.Users.ToListAsync(ct);
-        var adminUser = existingUsers.FirstOrDefault(u => string.Equals(u.Email, normalizedAdminEmail, StringComparison.OrdinalIgnoreCase));
-
-        var existingUserRoles = await context.UserRoles.ToListAsync(ct);
+        var adminUser = await context.Users
+            .FirstOrDefaultAsync(u => u.Email == normalizedAdminEmail, ct);
 
         if (adminUser is null)
         {
@@ -163,8 +161,8 @@ public static class IdentityDbSeeder
         }
         else
         {
-            var hasAdminRole = existingUserRoles.Any(ur => ur.UserId == adminUser.Id && ur.RoleId == adminRole.Id)
-                || adminUser.UserRoles.Any(ur => ur.RoleId == adminRole.Id);
+            var hasAdminRole = adminUser.UserRoles.Any(ur => ur.RoleId == adminRole.Id)
+                || await context.UserRoles.AnyAsync(ur => ur.UserId == adminUser.Id && ur.RoleId == adminRole.Id, ct);
 
             if (!hasAdminRole)
             {
