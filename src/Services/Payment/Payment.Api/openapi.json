@@ -17,11 +17,23 @@
           {
             "name": "X-Payment-Signature",
             "in": "header",
+            "required": true,
+            "description": "HMAC-SHA256 signature calculated with webhook secret.",
             "schema": {
               "type": "string"
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderWebhookPayload"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK"
@@ -108,6 +120,39 @@
   },
   "components": {
     "schemas": {
+      "ProviderWebhookPayload": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "paymentAttemptId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "providerTransactionId": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "eventId",
+          "eventType",
+          "paymentAttemptId",
+          "status"
+        ],
+        "additionalProperties": false
+      },
       "PaymentAttemptResponse": {
         "type": "object",
         "properties": {
