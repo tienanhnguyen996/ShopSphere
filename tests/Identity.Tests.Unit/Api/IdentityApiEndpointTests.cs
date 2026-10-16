@@ -9,8 +9,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
-using Microsoft.OpenApi.Extensions;
-using Microsoft.OpenApi.Models;
 using Moq;
 using ShopSphere.BuildingBlocks.Common.Results;
 using ShopSphere.Services.Identity.Api;
@@ -194,18 +192,18 @@ public class IdentityApiEndpointTests
         swaggerDoc.Paths.Should().ContainKey("/api/v1/roles");
 
         // Verify operations
-        swaggerDoc.Paths["/api/v1/auth/register"].Operations.Should().ContainKey(OperationType.Post);
-        swaggerDoc.Paths["/api/v1/auth/login"].Operations.Should().ContainKey(OperationType.Post);
-        swaggerDoc.Paths["/api/v1/auth/refresh"].Operations.Should().ContainKey(OperationType.Post);
-        swaggerDoc.Paths["/api/v1/auth/revoke"].Operations.Should().ContainKey(OperationType.Post);
-        swaggerDoc.Paths["/api/v1/auth/me"].Operations.Should().ContainKey(OperationType.Get);
-        swaggerDoc.Paths["/api/v1/users"].Operations.Should().ContainKey(OperationType.Get);
-        swaggerDoc.Paths["/api/v1/users/{id}"].Operations.Should().ContainKey(OperationType.Get);
-        swaggerDoc.Paths["/api/v1/users/{id}/roles"].Operations.Should().ContainKey(OperationType.Post);
-        swaggerDoc.Paths["/api/v1/users/{id}/roles/{roleId}"].Operations.Should().ContainKey(OperationType.Delete);
-        swaggerDoc.Paths["/api/v1/roles"].Operations.Should().ContainKey(OperationType.Get);
+        swaggerDoc.Paths["/api/v1/auth/register"].Operations.Should().ContainKey(HttpMethod.Post);
+        swaggerDoc.Paths["/api/v1/auth/login"].Operations.Should().ContainKey(HttpMethod.Post);
+        swaggerDoc.Paths["/api/v1/auth/refresh"].Operations.Should().ContainKey(HttpMethod.Post);
+        swaggerDoc.Paths["/api/v1/auth/revoke"].Operations.Should().ContainKey(HttpMethod.Post);
+        swaggerDoc.Paths["/api/v1/auth/me"].Operations.Should().ContainKey(HttpMethod.Get);
+        swaggerDoc.Paths["/api/v1/users"].Operations.Should().ContainKey(HttpMethod.Get);
+        swaggerDoc.Paths["/api/v1/users/{id}"].Operations.Should().ContainKey(HttpMethod.Get);
+        swaggerDoc.Paths["/api/v1/users/{id}/roles"].Operations.Should().ContainKey(HttpMethod.Post);
+        swaggerDoc.Paths["/api/v1/users/{id}/roles/{roleId}"].Operations.Should().ContainKey(HttpMethod.Delete);
+        swaggerDoc.Paths["/api/v1/roles"].Operations.Should().ContainKey(HttpMethod.Get);
 
-        var json = swaggerDoc.SerializeAsJson(OpenApiSpecVersion.OpenApi3_0);
+        var json = await swaggerDoc.SerializeAsJsonAsync(OpenApiSpecVersion.OpenApi3_0);
         json.Should().NotBeNullOrWhiteSpace();
 
         await app.StopAsync();

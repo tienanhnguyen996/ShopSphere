@@ -5,8 +5,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
-using Microsoft.OpenApi.Extensions;
-using Microsoft.OpenApi.Models;
 using Moq;
 using ShopSphere.Services.Inventory.Api;
 using ShopSphere.Services.Inventory.Application;
@@ -60,7 +58,7 @@ public class OpenApiSpecGeneratorTests
         swaggerDoc.Paths.Should().ContainKey("/api/v1/inventory/adjustments");
         swaggerDoc.Paths.Should().ContainKey("/api/v1/inventory/{sku}");
 
-        var json = swaggerDoc.SerializeAsJson(OpenApiSpecVersion.OpenApi3_0);
+        var json = await swaggerDoc.SerializeAsJsonAsync(OpenApiSpecVersion.OpenApi3_0);
         json.Should().NotBeNullOrWhiteSpace();
 
         await app.StopAsync();

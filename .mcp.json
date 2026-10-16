@@ -1,32 +1,33 @@
 {
   "mcpServers": {
     "github": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github@0.5.0"],
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server:latest"
+      ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
       }
     },
     "notion": {
       "command": "npx",
-      "args": ["-y", "@suekou/mcp-notion-server"],
+      "args": ["-y", "@suekou/mcp-notion-server@2.0.2"],
       "env": {
-        "NOTION_API_TOKEN": "${NOTION_TOKEN}",
-        "NOTION_API_KEY": "${NOTION_TOKEN}"
+        "NOTION_API_TOKEN": "${NOTION_TOKEN}"
       }
     },
     "context7": {
       "command": "npx",
-      "args": ["-y", "@context7/mcp-server@latest"]
+      "args": ["-y", "@upstash/context7-mcp@4.4.2"]
     },
     "microsoft-learn": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "--rm",
-        "mcp/microsoft-learn:0.1.0"
-      ]
+      "type": "http",
+      "url": "https://learn.microsoft.com/api/mcp"
     },
     "terraform": {
       "command": "docker",
@@ -36,7 +37,7 @@
         "--rm",
         "-v",
         "${PWD}/deploy/terraform:/workspace",
-        "mcp/terraform:0.2.0"
+        "hashicorp/terraform-mcp-server:latest"
       ]
     },
     "postman": {

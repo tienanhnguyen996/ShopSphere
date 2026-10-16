@@ -11,15 +11,15 @@ if (Test-Path "$env:USERPROFILE\.dotnet") {
 # 1. .NET Format Fix
 Write-Host "`nFixing .NET formatting..." -ForegroundColor Cyan
 $dotnetVersion = dotnet --version 2>$null
-if ($dotnetVersion -and $dotnetVersion.StartsWith("8.0")) {
+if ($dotnetVersion -and $dotnetVersion.StartsWith("10.0")) {
     dotnet format
     Write-Host "[PASS] .NET format applied" -ForegroundColor Green
 } elseif (Get-Command docker -ErrorAction SilentlyContinue) {
-    Write-Host "Using Docker container for .NET 8 SDK..."
-    docker run --rm -v "${PWD}:/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:8.0 dotnet format
+    Write-Host "Using Docker container for .NET 10 SDK..."
+    docker run --rm -v "${PWD}:/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 dotnet format
     Write-Host "[PASS] .NET format applied via Docker" -ForegroundColor Green
 } else {
-    Write-Host "[WARN] Skipping .NET format (neither .NET 8 SDK nor Docker found)" -ForegroundColor Yellow
+    Write-Host "[WARN] Skipping .NET format (neither .NET 10 SDK nor Docker found)" -ForegroundColor Yellow
 }
 
 # 2. Frontend Web Fix

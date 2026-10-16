@@ -26,7 +26,7 @@ elif [ -d "$HOME/.dotnet" ]; then
   export PATH="$HOME/.dotnet:$PATH"
 fi
 
-if dotnet --version 2>/dev/null | grep -q "^8\.0"; then
+if dotnet --version 2>/dev/null | grep -q "^10\.0"; then
   if dotnet format --verify-no-changes; then
     echo -e "${GREEN}✅${NC} .NET format check passed"
   else
@@ -34,15 +34,15 @@ if dotnet --version 2>/dev/null | grep -q "^8\.0"; then
     FAILED=1
   fi
 elif command -v docker &>/dev/null && docker ps &>/dev/null; then
-  echo "Using Docker container for .NET 8 SDK..."
-  if docker run --rm -v "$(pwd):/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:8.0 dotnet format --verify-no-changes; then
+  echo "Using Docker container for .NET 10 SDK..."
+  if docker run --rm -v "$(pwd):/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 dotnet format --verify-no-changes; then
     echo -e "${GREEN}✅${NC} .NET format check passed"
   else
     echo -e "${RED}❌${NC} .NET format check failed. Run 'bash scripts/fix-lint.sh' to fix."
     FAILED=1
   fi
 else
-  echo -e "${YELLOW}⚠️${NC}  Skipping .NET format check (neither .NET 8 SDK nor Docker found)"
+  echo -e "${YELLOW}⚠️${NC}  Skipping .NET format check (neither .NET 10 SDK nor Docker found)"
 fi
 
 # 2. Frontend Web Check

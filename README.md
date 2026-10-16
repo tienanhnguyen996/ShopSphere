@@ -54,7 +54,7 @@ AI-powered e-commerce fulfillment platform built with .NET microservices. Orches
    ```
    All services should show "healthy" status.
 
-**You're ready!** Services aren't implemented yet (this is foundation only), but the environment is fully configured.
+**You're ready!** Core services are implemented: Identity (authentication, JWT, refresh tokens, role/permission authorization), Catalog (products, prices, SKU validation), Cart (Redis persistence, price validation), Inventory (stock reservations, holds), Payment (transactional outbox, mock provider), and YARP API Gateway. Follow the development workflow below for running and extending services.
 
 ## One-Time Manual Steps
 
@@ -85,17 +85,21 @@ For Notion MCP server (docs/specs):
 
 ## Token Creation
 
-### GitHub Personal Access Token
+### GitHub Fine-Grained Personal Access Token
 
-1. Visit https://github.com/settings/tokens/new
-2. Name: "ShopSphere AI Agent"
+Use a fine-grained personal access token with least-privilege permissions scoped only to this repository:
+
+1. Visit https://github.com/settings/personal-access-tokens/new
+2. Token name: "ShopSphere AI Agent"
 3. Expiration: 90 days (rotate regularly)
-4. Scopes:
-   - ✅ `repo` (full repository access)
-   - ✅ `read:org` (read organization membership)
-   - ✅ `workflow` (manage GitHub Actions workflows)
-5. Generate token → Copy (starts with `ghp_`)
-6. Add to `.env`: `GITHUB_TOKEN=ghp_...`
+4. Repository access: **Only select repositories** → Select `ShopSphere`
+5. Repository permissions:
+   - ✅ **Contents**: Read and write (for code inspection and branch commits)
+   - ✅ **Pull requests**: Read and write (for PR creation and review)
+   - ✅ **Issues**: Read and write (for task tracking)
+   *(Note: `workflow` permission is dropped for security unless managing CI workflows)*
+6. Generate token → Copy (starts with `github_pat_` or classic `ghp_`)
+7. Add to `.env`: `GITHUB_TOKEN=github_pat_...`
 
 ### Notion Integration Token
 
@@ -105,7 +109,7 @@ See [Notion Integration](#notion-integration) above.
 
 ShopSphere is a microservices e-commerce platform with:
 
-- **7 Services**: Catalog, Cart, Order, Inventory, Payment, Shipping, Notification
+- **7 Services**: Identity, Catalog, Cart, Order, Inventory, Payment, Shipping
 - **Saga Orchestration**: Checkout workflow coordinates stock reservation → payment → shipping
 - **Transactional Outbox**: Atomic writes + messaging, no lost/duplicate messages
 - **Eventual Consistency**: Services update asynchronously, expose intermediate states
@@ -124,21 +128,23 @@ See [AGENTS.md](./AGENTS.md) for complete architectural rules.
 ```
 ShopSphere/
 ├── src/
-│   ├── BuildingBlocks/      # Shared libraries (future)
-│   ├── Services/            # Microservices (future)
-│   └── Web/                 # React SPA (future)
-├── tests/                   # Integration + unit tests (future)
+│   ├── BuildingBlocks/      # Shared cross-cutting concerns (Security, Results, Outbox)
+│   ├── Gateway/             # YARP reverse proxy API gateway
+│   ├── Services/            # Microservices (Identity, Catalog, Cart, Inventory, Payment, etc.)
+│   └── Web/                 # React SPA
+├── tests/                   # Unit and integration test suites
 ├── deploy/
-│   ├── compose/             # Local Docker infra
-│   └── terraform/           # Azure IaC (future)
+│   ├── compose/             # Local Docker infra (SQL Server, RabbitMQ, Redis)
+│   └── terraform/           # IaC modules
 ├── docs/
 │   ├── requirements/        # Architecture, services, messaging, infra
 │   ├── adr/                 # Architecture Decision Records
-│   ├── specs/               # Service specifications (future)
+│   ├── specs/               # Service OpenAPI specifications
 │   └── agent-setup.md       # MCP configuration guide
 ├── scripts/
 │   ├── bootstrap.sh         # First-run setup
-│   └── doctor.sh            # Health checks
+│   ├── doctor.sh / .ps1     # Environment health checks
+│   └── lint.sh / .ps1       # Code formatting and lint verification
 └── AGENTS.md                # Architecture + workflow rules (<150 lines)
 ```
 
@@ -146,13 +152,13 @@ ShopSphere/
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | .NET 8.0 LTS, ASP.NET Core, EF Core |
+| **Backend** | .NET 10 LTS, ASP.NET Core, EF Core |
 | **Frontend** | React 18, TypeScript, Vite, YARP gateway |
 | **Messaging** | MassTransit 8.3.3, RabbitMQ 3.13 |
 | **Data** | SQL Server 2022, Redis 7 |
 | **Testing** | xUnit, FluentAssertions, Testcontainers |
-| **Observability** | OpenTelemetry, Application Insights |
-| **IaC** | Terraform, Azure |
+| **Observability** | OpenTelemetry, Jaeger, Grafana (local) |
+| **IaC** | Terraform |
 
 ## Development Workflow
 
@@ -160,7 +166,7 @@ ShopSphere/
 2. **Write spec** (if new feature): API, messages, state transitions
 3. **Implement**: Follow service boundaries, use Transactional Outbox
 4. **Test**: Unit + integration, **include failure paths**
-5. **Run doctor**: `bash scripts/doctor.sh` before committing
+5. **Run doctor**: `bash scripts/doctor.sh` (or `pwsh scripts/doctor.ps1`) before committing
 6. **Commit**: Use [Conventional Commits](https://www.conventionalcommits.org/)
 7. **PR**: Use template checklist (architecture, testing, verification)
 
@@ -169,8 +175,7 @@ ShopSphere/
 AI agents configured via MCP (Model Context Protocol):
 
 - **Claude Code**: Auto-configured via `.mcp.json`
-- **Cline / Cursor / Windsurf**: Manual config (see [docs/agent-setup.md](./docs/agent-setup.md))
-- **Antigravity**: Centralized config (see [docs/agent-setup.md](./docs/agent-setup.md))
+- **Antigravity**: Centralized MCP configuration (see [docs/agent-setup.md](./docs/agent-setup.md))
 
 All agents have access to:
 - GitHub PR/issue management
@@ -286,7 +291,7 @@ Re-run on every skill update. Or add to `bootstrap.sh`.
 
 ## License
 
-[Add your license here]
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
 ## Support
 
