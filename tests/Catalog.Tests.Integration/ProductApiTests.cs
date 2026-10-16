@@ -1,5 +1,11 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.IdentityModel.Tokens;
+using ShopSphere.BuildingBlocks.Security;
 
 namespace ShopSphere.Services.Catalog.Tests.Integration;
 
@@ -10,6 +16,8 @@ public class ProductApiTests : IClassFixture<CatalogWebApplicationFactory>
     public ProductApiTests(CatalogWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
+        var token = GenerateJwtToken(ShopSpherePermissions.Catalog.CreateProduct, ShopSpherePermissions.Catalog.UpdatePrice);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
     [Fact]
@@ -75,5 +83,30 @@ public class ProductApiTests : IClassFixture<CatalogWebApplicationFactory>
         // Assert
         firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         secondResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    private static string GenerateJwtToken(params string[] permissions)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AuthenticationExtensions.DefaultDevKey));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Email, "catalog-admin@shopsphere.local")
+        };
+
+        foreach (var permission in permissions)
+        {
+            claims.Add(new Claim("permission", permission));
+        }
+
+        var token = new JwtSecurityToken(
+            issuer: AuthenticationExtensions.DefaultIssuer,
+            audience: AuthenticationExtensions.DefaultAudience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(30),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -69,6 +70,9 @@ public static class CartApiEndpoints
         })
         .WithName("GetCart")
         .WithTags("Cart")
+        .Produces<CartDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
         .WithOpenApi();
 
         // POST /api/v1/cart/items
@@ -90,6 +94,9 @@ public static class CartApiEndpoints
         })
         .WithName("AddItemToCart")
         .WithTags("Cart")
+        .Produces<CartDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
         .WithOpenApi();
 
         // PUT /api/v1/cart/items/{sku}
@@ -112,6 +119,9 @@ public static class CartApiEndpoints
         })
         .WithName("UpdateCartItemQuantity")
         .WithTags("Cart")
+        .Produces<CartDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
         .WithOpenApi();
 
         // DELETE /api/v1/cart/items/{sku}
@@ -135,6 +145,9 @@ public static class CartApiEndpoints
         })
         .WithName("RemoveCartItem")
         .WithTags("Cart")
+        .Produces(StatusCodes.Status204NoContent)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
         .WithOpenApi();
 
         // DELETE /api/v1/cart
@@ -157,6 +170,9 @@ public static class CartApiEndpoints
         })
         .WithName("ClearCart")
         .WithTags("Cart")
+        .Produces(StatusCodes.Status204NoContent)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
         .WithOpenApi();
 
         // GET /api/v1/cart/quote
@@ -177,6 +193,9 @@ public static class CartApiEndpoints
         })
         .WithName("GetCartCheckoutQuote")
         .WithTags("Cart")
+        .Produces<CheckoutQuoteDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status503ServiceUnavailable)
         .WithOpenApi();
 
         return app;
@@ -184,6 +203,17 @@ public static class CartApiEndpoints
 
     public static Result<string> GetCustomerId(HttpContext context)
     {
+        if (context.User?.Identity?.IsAuthenticated == true)
+        {
+            var claimValue = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? context.User.FindFirst("sub")?.Value;
+
+            if (!string.IsNullOrWhiteSpace(claimValue))
+            {
+                return Result.Success(claimValue.Trim());
+            }
+        }
+
         if (context.Request.Headers.TryGetValue(CustomerIdHeader, out var customerIdValues))
         {
             var customerId = customerIdValues.ToString();

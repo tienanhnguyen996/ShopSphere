@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using ShopSphere.BuildingBlocks.Messaging.Contracts;
+using ShopSphere.BuildingBlocks.Security;
 using ShopSphere.Services.Payment.Api.Services;
 using ShopSphere.Services.Payment.Application.Common.Interfaces;
 using ShopSphere.Services.Payment.Application.Contracts;
@@ -19,6 +20,12 @@ public record ProviderWebhookPayload(
     string? ProviderTransactionId,
     string Status,
     string? Reason);
+
+public record CreatePaymentAttemptRequest(
+    Guid OrderId,
+    decimal Amount,
+    string Currency,
+    string PaymentMethod);
 
 public record PaymentAttemptResponse(
     Guid Id,
@@ -200,6 +207,7 @@ public static class PaymentApiEndpoints
         })
         .WithName("ProviderWebhook")
         .WithSummary("Receives provider webhook callbacks with HMAC-SHA256 signature verification")
+        .Accepts<ProviderWebhookPayload>("application/json")
         .Produces(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status401Unauthorized)
@@ -237,6 +245,37 @@ public static class PaymentApiEndpoints
         .WithSummary("Retrieve details of a payment attempt by identifier")
         .Produces<PaymentAttemptResponse>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status404NotFound)
+        .RequirePermission(ShopSpherePermissions.Payment.Read)
+        .WithOpenApi();
+
+        // POST /api/v1/payment/attempts
+        group.MapPost("/attempts", async (
+            [FromBody] CreatePaymentAttemptRequest request,
+            IPaymentDbContext dbContext,
+            CancellationToken ct) =>
+        {
+            var attempt = PaymentAttempt.Create(request.OrderId, request.Amount, request.Currency, request.PaymentMethod);
+            dbContext.PaymentAttempts.Add(attempt);
+            await dbContext.SaveChangesAsync(ct);
+
+            var response = new PaymentAttemptResponse(
+                attempt.Id,
+                attempt.OrderId,
+                attempt.Amount,
+                attempt.Currency,
+                attempt.PaymentMethod,
+                attempt.Status.ToString(),
+                attempt.ProviderTransactionId,
+                attempt.FailureReason,
+                attempt.CreatedAtUtc,
+                attempt.UpdatedAtUtc);
+
+            return Results.Created($"/api/v1/payment/attempts/{attempt.Id}", response);
+        })
+        .WithName("CreatePaymentAttempt")
+        .WithSummary("Create a new payment attempt for an order")
+        .Produces<PaymentAttemptResponse>(StatusCodes.Status201Created)
+        .RequirePermission(ShopSpherePermissions.Payment.Create)
         .WithOpenApi();
 
         // GET /api/v1/payment/orders/{orderId}

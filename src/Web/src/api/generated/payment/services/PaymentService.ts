@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { CreatePaymentAttemptRequest } from '../models/CreatePaymentAttemptRequest';
 import type { PaymentAttemptResponse } from '../models/PaymentAttemptResponse';
 import type { ProviderWebhookPayload } from '../models/ProviderWebhookPayload';
 import type { CancelablePromise } from '../core/CancelablePromise';
@@ -14,14 +15,11 @@ export class PaymentService {
    * @throws ApiError
    */
   public static providerWebhook({
-    xPaymentSignature,
     requestBody,
+    xPaymentSignature,
   }: {
-    /**
-     * HMAC-SHA256 signature calculated with webhook secret.
-     */
-    xPaymentSignature: string;
     requestBody: ProviderWebhookPayload;
+    xPaymentSignature?: string;
   }): CancelablePromise<any> {
     return __request(OpenAPI, {
       method: 'POST',
@@ -56,6 +54,23 @@ export class PaymentService {
       errors: {
         404: `Not Found`,
       },
+    });
+  }
+  /**
+   * Create a new payment attempt for an order
+   * @returns PaymentAttemptResponse Created
+   * @throws ApiError
+   */
+  public static createPaymentAttempt({
+    requestBody,
+  }: {
+    requestBody: CreatePaymentAttemptRequest;
+  }): CancelablePromise<PaymentAttemptResponse> {
+    return __request(OpenAPI, {
+      method: 'POST',
+      url: '/api/v1/payment/attempts',
+      body: requestBody,
+      mediaType: 'application/json',
     });
   }
   /**

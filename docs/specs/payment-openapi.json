@@ -17,8 +17,6 @@
           {
             "name": "X-Payment-Signature",
             "in": "header",
-            "required": true,
-            "description": "HMAC-SHA256 signature calculated with webhook secret.",
             "schema": {
               "type": "string"
             }
@@ -82,6 +80,37 @@
         }
       }
     },
+    "/api/v1/payment/attempts": {
+      "post": {
+        "tags": [
+          "Payment"
+        ],
+        "summary": "Create a new payment attempt for an order",
+        "operationId": "CreatePaymentAttempt",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentAttemptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentAttemptResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/payment/orders/{orderId}": {
       "get": {
         "tags": [
@@ -120,37 +149,26 @@
   },
   "components": {
     "schemas": {
-      "ProviderWebhookPayload": {
+      "CreatePaymentAttemptRequest": {
         "type": "object",
         "properties": {
-          "eventId": {
-            "type": "string"
-          },
-          "eventType": {
-            "type": "string"
-          },
-          "paymentAttemptId": {
+          "orderId": {
             "type": "string",
             "format": "uuid"
           },
-          "providerTransactionId": {
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
             "type": "string",
             "nullable": true
           },
-          "status": {
-            "type": "string"
-          },
-          "reason": {
+          "paymentMethod": {
             "type": "string",
             "nullable": true
           }
         },
-        "required": [
-          "eventId",
-          "eventType",
-          "paymentAttemptId",
-          "status"
-        ],
         "additionalProperties": false
       },
       "PaymentAttemptResponse": {
@@ -195,6 +213,36 @@
           "updatedAtUtc": {
             "type": "string",
             "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProviderWebhookPayload": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "nullable": true
+          },
+          "eventType": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentAttemptId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "providerTransactionId": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string",
             "nullable": true
           }
         },
