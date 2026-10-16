@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BuildingBlocks\BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\src\Services\Identity\Identity.Domain\Identity.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Identity\Identity.Application\Identity.Application.csproj" />
   </ItemGroup>
 
 </Project>
