@@ -55,7 +55,7 @@ async function main() {
   }
 
   console.log('Formatting generated clients with Prettier...');
-  execSync('npx prettier --write "src/api/generated/**/*.{ts,tsx}"', {
+  execSync('pnpm exec prettier --write "src/api/generated/**/*.{ts,tsx}"', {
     cwd: webRoot,
     stdio: 'inherit',
   });
