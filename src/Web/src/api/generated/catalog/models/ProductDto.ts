@@ -3,14 +3,14 @@
 /* tslint:disable */
 /* eslint-disable */
 export type ProductDto = {
-  id: string;
-  name: string;
-  description?: string;
-  sku: string;
-  price: number;
-  currency: string;
-  status: string;
-  priceVersion: number;
-  createdAtUtc: string;
+  id?: string;
+  name?: string | null;
+  description?: string | null;
+  sku?: string | null;
+  price?: number;
+  currency?: string | null;
+  status?: string | null;
+  priceVersion?: number;
+  createdAtUtc?: string;
   updatedAtUtc?: string | null;
 };

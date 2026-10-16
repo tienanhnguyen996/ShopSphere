@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.0.4",
   "info": {
     "title": "ShopSphere Inventory Service API",
     "description": "Microservice managing stock allocations, reservation holds, commit workflows, and intake adjustments.",

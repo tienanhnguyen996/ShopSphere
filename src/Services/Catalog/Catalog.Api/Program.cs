@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using ShopSphere.BuildingBlocks.Common.Results;
 using ShopSphere.BuildingBlocks.Observability;
 using ShopSphere.BuildingBlocks.Security;
@@ -12,6 +12,7 @@ using ShopSphere.Services.Catalog.Application;
 using ShopSphere.Services.Catalog.Application.Common.Interfaces;
 using ShopSphere.Services.Catalog.Application.Products.Commands.CreateProduct;
 using ShopSphere.Services.Catalog.Application.Products.Commands.UpdatePrice;
+using ShopSphere.Services.Catalog.Application.Common.Models;
 using ShopSphere.Services.Catalog.Application.Products.Dtos;
 using ShopSphere.Services.Catalog.Application.Products.Queries.GetProductBySku;
 using ShopSphere.Services.Catalog.Application.Products.Queries.GetProducts;
@@ -29,6 +30,7 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1",
         Description = "Microservice managing products, prices, SKU validation, and catalog inventory references in ShopSphere."
     });
+    c.CustomSchemaIds(type => type == typeof(PagedResult<ProductDto>) ? "PagedProductResult" : type.Name);
 });
 
 builder.Services.AddShopSphereObservability(builder.Configuration, "CatalogService");

@@ -3,6 +3,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export type UpdatePriceRequest = {
-  newPrice: number;
-  currency?: string;
+  newPrice?: number;
+  currency?: string | null;
 };

@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.0.4",
   "info": {
     "title": "ShopSphere Catalog Service API",
     "description": "Microservice managing products, prices, SKU validation, and catalog inventory references in ShopSphere.",
@@ -11,7 +11,6 @@
         "tags": [
           "Products"
         ],
-        "summary": "Create a new catalog product",
         "operationId": "CreateCatalogProduct",
         "requestBody": {
           "content": {
@@ -38,7 +37,7 @@
             "description": "Bad Request"
           },
           "409": {
-            "description": "Conflict - Product SKU already exists"
+            "description": "Conflict"
           }
         }
       },
@@ -46,7 +45,6 @@
         "tags": [
           "Products"
         ],
-        "summary": "Retrieve paginated products with filtering",
         "operationId": "GetCatalogProducts",
         "parameters": [
           {
@@ -54,8 +52,7 @@
             "in": "query",
             "schema": {
               "type": "integer",
-              "format": "int32",
-              "default": 1
+              "format": "int32"
             }
           },
           {
@@ -63,16 +60,14 @@
             "in": "query",
             "schema": {
               "type": "integer",
-              "format": "int32",
-              "default": 20
+              "format": "int32"
             }
           },
           {
             "name": "onlyActive",
             "in": "query",
             "schema": {
-              "type": "boolean",
-              "default": true
+              "type": "boolean"
             }
           }
         ],
@@ -95,7 +90,6 @@
         "tags": [
           "Products"
         ],
-        "summary": "Retrieve product details by unique SKU",
         "operationId": "GetCatalogProductBySku",
         "parameters": [
           {
@@ -129,7 +123,6 @@
         "tags": [
           "Products"
         ],
-        "summary": "Update product price and increment price version",
         "operationId": "UpdateCatalogProductPrice",
         "parameters": [
           {
@@ -178,13 +171,16 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "sku": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "priceAmount": {
             "type": "number",
@@ -192,86 +188,12 @@
           },
           "currency": {
             "type": "string",
-            "default": "USD"
+            "nullable": true
           },
           "activateImmediately": {
-            "type": "boolean",
-            "default": true
+            "type": "boolean"
           }
         },
-        "required": [
-          "name",
-          "sku",
-          "priceAmount"
-        ],
-        "additionalProperties": false
-      },
-      "UpdatePriceRequest": {
-        "type": "object",
-        "properties": {
-          "newPrice": {
-            "type": "number",
-            "format": "double"
-          },
-          "currency": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "newPrice"
-        ],
-        "additionalProperties": false
-      },
-      "ProductDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "sku": {
-            "type": "string"
-          },
-          "price": {
-            "type": "number",
-            "format": "double"
-          },
-          "currency": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "priceVersion": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAtUtc": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "sku",
-          "price",
-          "currency",
-          "status",
-          "priceVersion",
-          "createdAtUtc"
-        ],
         "additionalProperties": false
       },
       "PagedProductResult": {
@@ -281,7 +203,8 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProductDto"
-            }
+            },
+            "nullable": true
           },
           "totalCount": {
             "type": "integer",
@@ -297,24 +220,79 @@
           },
           "totalPages": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "readOnly": true
           },
           "hasNextPage": {
-            "type": "boolean"
+            "type": "boolean",
+            "readOnly": true
           },
           "hasPreviousPage": {
-            "type": "boolean"
+            "type": "boolean",
+            "readOnly": true
           }
         },
-        "required": [
-          "items",
-          "totalCount",
-          "page",
-          "pageSize",
-          "totalPages",
-          "hasNextPage",
-          "hasPreviousPage"
-        ],
+        "additionalProperties": false
+      },
+      "ProductDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "sku": {
+            "type": "string",
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "priceVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdatePriceRequest": {
+        "type": "object",
+        "properties": {
+          "newPrice": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          }
+        },
         "additionalProperties": false
       }
     }

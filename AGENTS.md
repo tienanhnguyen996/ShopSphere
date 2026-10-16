@@ -22,7 +22,7 @@
 
 **Expiry is a state transition**: Reservation expiry checks happen inside the transaction that commits/releases stock, not just a background job deleting a cache entry.
 
-**API documentation**: When adding or modifying an API endpoint, document it in the service's OpenAPI spec AND add it to the Postman collection via the Postman MCP server. Every endpoint must have a working Postman request with example payloads.
+**API documentation**: OpenAPI is the single source of truth for all API contracts and TypeScript client generation. When adding or modifying an API endpoint, document it thoroughly in the service's OpenAPI spec (`openapi.json` and `docs/specs/*-openapi.json`). Postman collections and the Postman MCP server are optional for manual exploration and debugging, never a required prerequisite or second source of truth.
 
 ## Frontend Rules
 

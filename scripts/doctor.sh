@@ -38,8 +38,8 @@ check_version() {
   fi
 }
 
-check_version "dotnet" "8\.0" "dotnet --version"
-check_version "node" "20\." "node --version"
+check_version "dotnet" "10\.0" "dotnet --version"
+check_version "node" "2[02]\." "node --version"
 check_version "pnpm" "[0-9]+" "pnpm --version"
 check_version "terraform" "1\." "terraform --version"
 check_version "docker" "[0-9]+" "docker --version"

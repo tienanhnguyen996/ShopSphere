@@ -3,6 +3,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export type CartItemDto = {
-  sku: string;
-  quantity: number;
+  sku?: string | null;
+  quantity?: number;
 };

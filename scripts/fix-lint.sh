@@ -22,15 +22,15 @@ elif [ -d "$HOME/.dotnet" ]; then
   export PATH="$HOME/.dotnet:$PATH"
 fi
 
-if dotnet --version 2>/dev/null | grep -q "^8\.0"; then
+if dotnet --version 2>/dev/null | grep -q "^10\.0"; then
   dotnet format
   echo -e "${GREEN}✅${NC} .NET format applied"
 elif command -v docker &>/dev/null; then
-  echo "Using Docker container for .NET 8 SDK..."
-  docker run --rm -v "$(pwd):/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:8.0 dotnet format
+  echo "Using Docker container for .NET 10 SDK..."
+  docker run --rm -v "$(pwd):/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 dotnet format
   echo -e "${GREEN}✅${NC} .NET format applied via Docker"
 else
-  echo "⚠️ Skipping .NET format (neither .NET 8 SDK nor Docker found)"
+  echo "⚠️ Skipping .NET format (neither .NET 10 SDK nor Docker found)"
 fi
 
 # 2. Frontend Web Fix
