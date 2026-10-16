@@ -24,7 +24,7 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      catalog: ${{ steps.filter.outputs.catalog }}
+      dotnet: ${{ steps.filter.outputs.dotnet }}
       web: ${{ steps.filter.outputs.web }}
     steps:
       - uses: actions/checkout@v4
@@ -32,11 +32,9 @@ jobs:
         id: filter
         with:
           filters: |
-            catalog:
-              - 'src/Services/Catalog/**'
-              - 'tests/Catalog.Tests.Unit/**'
-              - 'tests/Catalog.Tests.Integration/**'
-              - 'src/BuildingBlocks/**'
+            dotnet:
+              - 'src/**'
+              - 'tests/**'
               - 'Directory.Build.props'
               - 'Directory.Packages.props'
               - 'global.json'
@@ -49,10 +47,10 @@ jobs:
               - 'pnpm-workspace.yaml'
               - '.github/workflows/test.yml'
 
-  test-catalog:
-    name: Catalog Tests (Unit & Integration)
+  test-dotnet:
+    name: .NET Tests (Unit & Integration)
     needs: changes
-    if: needs.changes.outputs.catalog == 'true'
+    if: needs.changes.outputs.dotnet == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +67,12 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Run Unit Tests
-        run: dotnet test tests/Catalog.Tests.Unit/Catalog.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
+        run: |
+          dotnet test tests/BuildingBlocks.Tests.Unit/BuildingBlocks.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
+          dotnet test tests/Catalog.Tests.Unit/Catalog.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
+          dotnet test tests/Cart.Tests.Unit/Cart.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
+          dotnet test tests/Inventory.Tests.Unit/Inventory.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
+          dotnet test tests/Payment.Tests.Unit/Payment.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
 
       - name: Run Integration Tests
         run: dotnet test tests/Catalog.Tests.Integration/Catalog.Tests.Integration.csproj --no-build --configuration Release --verbosity normal
@@ -100,7 +103,7 @@ jobs:
 
   test-status:
     name: Tests Status
-    needs: [changes, test-catalog, test-web]
+    needs: [changes, test-dotnet, test-web]
     if: always()
     runs-on: ubuntu-latest
     steps:
