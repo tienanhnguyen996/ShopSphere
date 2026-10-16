@@ -42,6 +42,7 @@ jobs:
               - '.github/workflows/test.yml'
             web:
               - 'src/Web/**'
+              - 'docs/specs/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
@@ -98,6 +99,9 @@ jobs:
 
       - name: Install Dependencies
         run: pnpm install
+
+      - name: Run Web Tests
+        run: pnpm --dir src/Web test
 
       - name: Typecheck and Build Web
         run: pnpm --dir src/Web build

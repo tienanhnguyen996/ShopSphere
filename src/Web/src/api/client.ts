@@ -58,7 +58,7 @@ export function configureApiClients(): void {
     config.HEADERS = async () => ({
       'X-Correlation-Id': getCorrelationId(),
     });
-    config.TOKEN = async () => getAuthToken() as string;
+    config.TOKEN = async () => getAuthToken() ?? '';
   }
 }
 
