@@ -73,6 +73,7 @@ jobs:
           dotnet test tests/Cart.Tests.Unit/Cart.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
           dotnet test tests/Inventory.Tests.Unit/Inventory.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
           dotnet test tests/Payment.Tests.Unit/Payment.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
+          dotnet test tests/Gateway.Tests.Unit/Gateway.Tests.Unit.csproj --no-build --configuration Release --verbosity normal
 
       - name: Run Integration Tests
         run: dotnet test tests/Catalog.Tests.Integration/Catalog.Tests.Integration.csproj --no-build --configuration Release --verbosity normal
