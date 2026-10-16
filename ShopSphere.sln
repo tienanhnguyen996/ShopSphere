@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -82,6 +82,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Application", "src\Services\Identity\Identity.Application\Identity.Application.csproj", "{9B7B434F-F79E-4C40-B576-0B9B6C2E091E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Infrastructure", "src\Services\Identity\Identity.Infrastructure\Identity.Infrastructure.csproj", "{E96E7B41-4FB7-4741-A231-46BFCEB4D069}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Api", "src\Services\Identity\Identity.Api\Identity.Api.csproj", "{6053AA7F-7C94-49D1-832D-A43216ED4B29}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -220,6 +222,10 @@ Global
 		{E96E7B41-4FB7-4741-A231-46BFCEB4D069}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E96E7B41-4FB7-4741-A231-46BFCEB4D069}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E96E7B41-4FB7-4741-A231-46BFCEB4D069}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6053AA7F-7C94-49D1-832D-A43216ED4B29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6053AA7F-7C94-49D1-832D-A43216ED4B29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6053AA7F-7C94-49D1-832D-A43216ED4B29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6053AA7F-7C94-49D1-832D-A43216ED4B29}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{E9696F4B-59DC-4335-A44E-BA51AA6B8C6E} = {0EB82289-1203-402A-A768-DFDF63A4E7A7}
@@ -260,5 +266,6 @@ Global
 		{5588F01B-8441-4BAC-BDCD-85C58EB9E3C6} = {22AA82AC-9C39-4859-82A6-F48F2F380061}
 		{9B7B434F-F79E-4C40-B576-0B9B6C2E091E} = {09FACED6-59B9-4121-A34D-0469F0FF5689}
 		{E96E7B41-4FB7-4741-A231-46BFCEB4D069} = {09FACED6-59B9-4121-A34D-0469F0FF5689}
+		{6053AA7F-7C94-49D1-832D-A43216ED4B29} = {09FACED6-59B9-4121-A34D-0469F0FF5689}
 	EndGlobalSection
 EndGlobal
