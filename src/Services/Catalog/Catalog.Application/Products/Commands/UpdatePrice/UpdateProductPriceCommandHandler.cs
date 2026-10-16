@@ -6,6 +6,7 @@ using ShopSphere.BuildingBlocks.Messaging.Serialization;
 using ShopSphere.BuildingBlocks.Outbox;
 using ShopSphere.Services.Catalog.Application.Common.Interfaces;
 using ShopSphere.Services.Catalog.Application.Products.Dtos;
+using ShopSphere.Services.Catalog.Application.Products.Queries.GetProductBySku;
 using ShopSphere.Services.Catalog.Domain;
 using ShopSphere.Services.Catalog.Domain.Events;
 
@@ -15,13 +16,16 @@ public sealed class UpdateProductPriceCommandHandler
 {
     private readonly ICatalogDbContext _dbContext;
     private readonly IValidator<UpdateProductPriceCommand> _validator;
+    private readonly ICacheService _cacheService;
 
     public UpdateProductPriceCommandHandler(
         ICatalogDbContext dbContext,
-        IValidator<UpdateProductPriceCommand> validator)
+        IValidator<UpdateProductPriceCommand> validator,
+        ICacheService cacheService)
     {
         _dbContext = dbContext;
         _validator = validator;
+        _cacheService = cacheService;
     }
 
     public async Task<Result<ProductDto>> HandleAsync(
@@ -82,6 +86,9 @@ public sealed class UpdateProductPriceCommandHandler
         }
 
         await _dbContext.SaveChangesAsync(ct);
+
+        // Invalidate Redis cache immediately after DB commit
+        await _cacheService.RemoveAsync(CachedGetProductBySkuQueryHandler.GetCacheKey(product.Sku.Value), ct);
 
         var dto = new ProductDto(
             product.Id,

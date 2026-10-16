@@ -1,5 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using ShopSphere.Services.Catalog.Application.Common.Interfaces;
 using ShopSphere.Services.Catalog.Application.Products.Commands.CreateProduct;
 using ShopSphere.Services.Catalog.Application.Products.Commands.UpdatePrice;
 using ShopSphere.Services.Catalog.Application.Products.Queries.GetProductBySku;
@@ -17,7 +19,13 @@ public static class DependencyInjection
         services.AddScoped<UpdateProductPriceCommandHandler>();
 
         services.AddScoped<GetProductBySkuQueryHandler>();
-        services.AddScoped<IGetProductBySkuQueryHandler>(sp => sp.GetRequiredService<GetProductBySkuQueryHandler>());
+        services.AddScoped<IGetProductBySkuQueryHandler>(sp =>
+        {
+            var inner = sp.GetRequiredService<GetProductBySkuQueryHandler>();
+            var cache = sp.GetRequiredService<ICacheService>();
+            var logger = sp.GetRequiredService<ILogger<CachedGetProductBySkuQueryHandler>>();
+            return new CachedGetProductBySkuQueryHandler(inner, cache, logger);
+        });
 
         services.AddScoped<GetProductsQueryHandler>();
         services.AddScoped<IGetProductsQueryHandler>(sp => sp.GetRequiredService<GetProductsQueryHandler>());
