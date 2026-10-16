@@ -8,12 +8,10 @@ namespace ShopSphere.Gateway.Tests.Unit;
 
 public class GatewayApiTests : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
 
     public GatewayApiTests(WebApplicationFactory<Program> factory)
     {
-        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -83,5 +81,22 @@ public class GatewayApiTests : IClassFixture<WebApplicationFactory<Program>>
         root.GetProperty("detail").GetString().Should().Be("Downstream service is temporarily unavailable or unreachable.");
         root.TryGetProperty("traceId", out var traceIdProp).Should().BeTrue();
         traceIdProp.GetString().Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Theory]
+    [InlineData("http://localhost:3000")]
+    [InlineData("http://localhost:5173")]
+    public async Task Gateway_ConfiguredRouteWithUnreachableDownstream_ShouldPreserveCorsHeadersForAllowedOrigins(string origin)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/catalog/items");
+        request.Headers.Add("Origin", origin);
+
+        var response = await _client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        response.Headers.Contains("Access-Control-Allow-Origin").Should().BeTrue();
+        response.Headers.GetValues("Access-Control-Allow-Origin").Should().Contain(origin);
+        response.Headers.Contains("Access-Control-Allow-Credentials").Should().BeTrue();
+        response.Headers.GetValues("Access-Control-Allow-Credentials").Should().Contain("true");
     }
 }

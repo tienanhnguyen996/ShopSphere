@@ -31,7 +31,6 @@ public class GatewayErrorHandlingMiddleware
         {
             if (!context.Response.HasStarted)
             {
-                context.Response.Clear();
                 context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
                 context.Response.ContentType = "application/json";
 
