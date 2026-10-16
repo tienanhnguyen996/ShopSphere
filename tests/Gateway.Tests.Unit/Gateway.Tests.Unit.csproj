@@ -19,4 +19,10 @@
     <ProjectReference Include="..\..\src\Gateway\ShopSphere.Gateway\ShopSphere.Gateway.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\src\Gateway\ShopSphere.Gateway\appsettings.json" Link="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
