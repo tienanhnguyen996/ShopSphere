@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "generate-client": "node scripts/generate-clients.mjs",
-    "test": "node --experimental-strip-types --test src/api/client.test.ts",
+    "test": "node --import ./scripts/register-ts.mjs --test src/api/client.test.ts",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
