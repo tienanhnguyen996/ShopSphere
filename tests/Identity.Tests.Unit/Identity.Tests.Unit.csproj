@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\BuildingBlocks\BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\src\Services\Identity\Identity.Domain\Identity.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Identity\Identity.Application\Identity.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Identity\Identity.Infrastructure\Identity.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
