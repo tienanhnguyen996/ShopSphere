@@ -2,6 +2,7 @@ using Microsoft.OpenApi.Models;
 using ShopSphere.BuildingBlocks.Messaging.Configuration;
 using ShopSphere.BuildingBlocks.Observability;
 using ShopSphere.BuildingBlocks.Persistence.Extensions;
+using ShopSphere.BuildingBlocks.Security;
 using ShopSphere.Services.Payment.Api;
 using ShopSphere.Services.Payment.Api.Health;
 using ShopSphere.Services.Payment.Api.Services;
@@ -22,6 +23,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddShopSphereObservability(builder.Configuration, "PaymentService");
+builder.Services.AddShopSphereAuthentication(builder.Configuration);
+builder.Services.AddShopSphereAuthorization();
 builder.Services.AddPaymentInfrastructure(builder.Configuration);
 
 builder.Services.AddSingleton<IPaymentWebhookSignatureValidator, PaymentWebhookSignatureValidator>();
@@ -48,6 +51,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapPaymentEndpoints();
 

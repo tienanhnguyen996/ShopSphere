@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ShopSphere.BuildingBlocks.Security;
@@ -31,4 +32,25 @@ public static class AuthorizationExtensions
 
         return services;
     }
+
+    public static TBuilder RequirePermission<TBuilder>(
+        this TBuilder builder,
+        string permission) where TBuilder : IEndpointConventionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(permission);
+
+        return builder.RequireAuthorization(permission);
+    }
+
+    public static TBuilder RequirePermissions<TBuilder>(
+        this TBuilder builder,
+        params string[] permissions) where TBuilder : IEndpointConventionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(permissions);
+
+        return builder.RequireAuthorization(permissions);
+    }
 }
+

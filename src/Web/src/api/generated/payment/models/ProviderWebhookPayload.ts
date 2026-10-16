@@ -3,10 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export type ProviderWebhookPayload = {
-  eventId: string;
-  eventType: string;
-  paymentAttemptId: string;
+  eventId?: string | null;
+  eventType?: string | null;
+  paymentAttemptId?: string;
   providerTransactionId?: string | null;
-  status: string;
+  status?: string | null;
   reason?: string | null;
 };

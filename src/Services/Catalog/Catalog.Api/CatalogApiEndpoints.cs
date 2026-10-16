@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using ShopSphere.BuildingBlocks.Common.Results;
+using ShopSphere.BuildingBlocks.Security;
 using ShopSphere.Services.Catalog.Application.Common.Interfaces;
+using ShopSphere.Services.Catalog.Application.Common.Models;
 using ShopSphere.Services.Catalog.Application.Products.Commands.CreateProduct;
 using ShopSphere.Services.Catalog.Application.Products.Commands.UpdatePrice;
 using ShopSphere.Services.Catalog.Application.Products.Dtos;
@@ -68,6 +70,10 @@ public static class CatalogApiEndpoints
         })
         .WithName("CreateCatalogProduct")
         .WithTags("Products")
+        .Produces<ProductDto>(StatusCodes.Status201Created)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status409Conflict)
+        .RequirePermission(ShopSpherePermissions.Catalog.CreateProduct)
         .WithOpenApi();
 
         // Route alias: POST /api/v1/products
@@ -89,7 +95,9 @@ public static class CatalogApiEndpoints
         })
         .WithName("CreateProductAlias")
         .WithTags("Products")
+        .RequirePermission(ShopSpherePermissions.Catalog.CreateProduct)
         .ExcludeFromDescription();
+
 
         // GET /api/v1/catalog/products
         app.MapGet("/api/v1/catalog/products", async (
@@ -105,6 +113,7 @@ public static class CatalogApiEndpoints
         })
         .WithName("GetCatalogProducts")
         .WithTags("Products")
+        .Produces<PagedResult<ProductDto>>(StatusCodes.Status200OK)
         .WithOpenApi();
 
         // Route alias: GET /api/v1/products
@@ -135,6 +144,8 @@ public static class CatalogApiEndpoints
         })
         .WithName("GetCatalogProductBySku")
         .WithTags("Products")
+        .Produces<ProductDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound)
         .WithOpenApi();
 
         // Route alias: GET /api/v1/products/{id:guid}
@@ -183,6 +194,10 @@ public static class CatalogApiEndpoints
         })
         .WithName("UpdateCatalogProductPrice")
         .WithTags("Products")
+        .Produces<ProductDto>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound)
+        .RequirePermission(ShopSpherePermissions.Catalog.UpdatePrice)
         .WithOpenApi();
 
         // Route alias: PUT /api/v1/products/{id:guid}/price
@@ -208,7 +223,9 @@ public static class CatalogApiEndpoints
         })
         .WithName("UpdateProductPriceByIdAlias")
         .WithTags("Products")
+        .RequirePermission(ShopSpherePermissions.Catalog.UpdatePrice)
         .ExcludeFromDescription();
+
 
         return app;
     }

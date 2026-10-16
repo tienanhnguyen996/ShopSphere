@@ -7,6 +7,7 @@ export { CancelablePromise, CancelError } from './core/CancelablePromise';
 export { OpenAPI } from './core/OpenAPI';
 export type { OpenAPIConfig } from './core/OpenAPI';
 
+export type { CreatePaymentAttemptRequest } from './models/CreatePaymentAttemptRequest';
 export type { PaymentAttemptResponse } from './models/PaymentAttemptResponse';
 export type { ProviderWebhookPayload } from './models/ProviderWebhookPayload';
 

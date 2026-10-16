@@ -5,6 +5,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using ShopSphere.BuildingBlocks.Common.Results;
 using ShopSphere.BuildingBlocks.Observability;
+using ShopSphere.BuildingBlocks.Security;
 using ShopSphere.Services.Catalog.Api;
 using ShopSphere.Services.Catalog.Api.Health;
 using ShopSphere.Services.Catalog.Application;
@@ -31,6 +32,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddShopSphereObservability(builder.Configuration, "CatalogService");
+builder.Services.AddShopSphereAuthentication(builder.Configuration);
+builder.Services.AddShopSphereAuthorization();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -51,6 +54,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapCatalogEndpoints();
 

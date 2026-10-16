@@ -11,7 +11,6 @@
         "tags": [
           "Products"
         ],
-        "summary": "Create a new catalog product",
         "operationId": "CreateCatalogProduct",
         "requestBody": {
           "content": {
@@ -24,21 +23,8 @@
           "required": true
         },
         "responses": {
-          "201": {
-            "description": "Created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProductDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "409": {
-            "description": "Conflict - Product SKU already exists"
+          "200": {
+            "description": "OK"
           }
         }
       },
@@ -46,7 +32,6 @@
         "tags": [
           "Products"
         ],
-        "summary": "Retrieve paginated products with filtering",
         "operationId": "GetCatalogProducts",
         "parameters": [
           {
@@ -54,8 +39,7 @@
             "in": "query",
             "schema": {
               "type": "integer",
-              "format": "int32",
-              "default": 1
+              "format": "int32"
             }
           },
           {
@@ -63,29 +47,20 @@
             "in": "query",
             "schema": {
               "type": "integer",
-              "format": "int32",
-              "default": 20
+              "format": "int32"
             }
           },
           {
             "name": "onlyActive",
             "in": "query",
             "schema": {
-              "type": "boolean",
-              "default": true
+              "type": "boolean"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PagedProductResult"
-                }
-              }
-            }
+            "description": "OK"
           }
         }
       }
@@ -95,7 +70,6 @@
         "tags": [
           "Products"
         ],
-        "summary": "Retrieve product details by unique SKU",
         "operationId": "GetCatalogProductBySku",
         "parameters": [
           {
@@ -109,17 +83,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProductDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found"
+            "description": "OK"
           }
         }
       }
@@ -129,7 +93,6 @@
         "tags": [
           "Products"
         ],
-        "summary": "Update product price and increment price version",
         "operationId": "UpdateCatalogProductPrice",
         "parameters": [
           {
@@ -153,20 +116,7 @@
         },
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProductDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "404": {
-            "description": "Not Found"
+            "description": "OK"
           }
         }
       }
@@ -178,13 +128,16 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "sku": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "priceAmount": {
             "type": "number",
@@ -192,18 +145,12 @@
           },
           "currency": {
             "type": "string",
-            "default": "USD"
+            "nullable": true
           },
           "activateImmediately": {
-            "type": "boolean",
-            "default": true
+            "type": "boolean"
           }
         },
-        "required": [
-          "name",
-          "sku",
-          "priceAmount"
-        ],
         "additionalProperties": false
       },
       "UpdatePriceRequest": {
@@ -214,107 +161,10 @@
             "format": "double"
           },
           "currency": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "newPrice"
-        ],
-        "additionalProperties": false
-      },
-      "ProductDto": {
-        "type": "object",
-        "properties": {
-          "id": {
             "type": "string",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "sku": {
-            "type": "string"
-          },
-          "price": {
-            "type": "number",
-            "format": "double"
-          },
-          "currency": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "priceVersion": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAtUtc": {
-            "type": "string",
-            "format": "date-time",
             "nullable": true
           }
         },
-        "required": [
-          "id",
-          "name",
-          "sku",
-          "price",
-          "currency",
-          "status",
-          "priceVersion",
-          "createdAtUtc"
-        ],
-        "additionalProperties": false
-      },
-      "PagedProductResult": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProductDto"
-            }
-          },
-          "totalCount": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "page": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "pageSize": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "totalPages": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "hasNextPage": {
-            "type": "boolean"
-          },
-          "hasPreviousPage": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "items",
-          "totalCount",
-          "page",
-          "pageSize",
-          "totalPages",
-          "hasNextPage",
-          "hasPreviousPage"
-        ],
         "additionalProperties": false
       }
     }

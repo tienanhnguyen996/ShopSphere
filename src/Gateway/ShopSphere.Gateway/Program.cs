@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using ShopSphere.BuildingBlocks.Observability;
+using ShopSphere.BuildingBlocks.Security;
 using ShopSphere.Gateway.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +18,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddShopSphereAuthentication(builder.Configuration);
+builder.Services.AddShopSphereAuthorization();
+
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
@@ -27,6 +31,9 @@ builder.Services.AddHealthChecks();
 var app = builder.Build();
 
 app.UseCors(frontendCorsPolicy);
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseGatewayErrorHandling();
 
