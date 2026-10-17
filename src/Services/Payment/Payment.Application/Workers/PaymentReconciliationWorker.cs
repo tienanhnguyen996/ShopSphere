@@ -91,64 +91,111 @@ public class PaymentReconciliationWorker : BackgroundService
 
         foreach (var attempt in unknownAttempts)
         {
-            try
+            const int maxRetries = 3;
+            for (var retry = 0; retry < maxRetries; retry++)
             {
-                var queryRequest = new PaymentStatusQueryRequest(attempt.Id, attempt.ProviderTransactionId);
-                var queryResult = await providerClient.GetStatusAsync(queryRequest, ct);
-
-                if (queryResult.Status == PaymentProviderStatus.Success)
+                try
                 {
-                    var transactionId = queryResult.ProviderTransactionId ?? attempt.ProviderTransactionId ?? $"reconciled_tx_{attempt.Id:N}";
-                    attempt.MarkSucceeded(transactionId);
-                    _logger.LogInformation("Reconciled PaymentAttempt {AttemptId} for Order {OrderId} as Succeeded. Tx: {TxId}",
-                        attempt.Id, attempt.OrderId, transactionId);
+                    var currentAttempt = attempt;
+                    if (retry > 0)
+                    {
+                        var fresh = await dbContext.PaymentAttempts.FirstOrDefaultAsync(p => p.Id == attempt.Id, ct);
+                        if (fresh is null)
+                        {
+                            _logger.LogInformation("PaymentAttempt {AttemptId} not found on reload. Skipping.", attempt.Id);
+                            break;
+                        }
+                        currentAttempt = fresh;
+                    }
 
-                    var successEvent = new PaymentSucceeded(
-                        attempt.OrderId,
-                        attempt.Id,
-                        transactionId,
-                        attempt.Amount,
-                        attempt.Currency);
+                    var queryRequest = new PaymentStatusQueryRequest(currentAttempt.Id, currentAttempt.ProviderTransactionId);
+                    var queryResult = await providerClient.GetStatusAsync(queryRequest, ct);
 
-                    var envelope = MessageEnvelope<PaymentSucceeded>.Create(successEvent, attempt.OrderId.ToString());
-                    await publishEndpoint.Publish(envelope, ct);
-                    await publishEndpoint.Publish(envelope.Payload, ct);
+                    if (queryResult.Status == PaymentProviderStatus.Success)
+                    {
+                        var transactionId = queryResult.ProviderTransactionId ?? currentAttempt.ProviderTransactionId ?? $"reconciled_tx_{currentAttempt.Id:N}";
+                        if (currentAttempt.Status == PaymentStatus.PaymentUnknown)
+                        {
+                            currentAttempt.MarkSucceeded(transactionId);
+                            _logger.LogInformation("Reconciled PaymentAttempt {AttemptId} for Order {OrderId} as Succeeded. Tx: {TxId}",
+                                currentAttempt.Id, currentAttempt.OrderId, transactionId);
+                        }
+                        else if (currentAttempt.Status != PaymentStatus.Succeeded)
+                        {
+                            _logger.LogWarning("PaymentAttempt {AttemptId} already resolved to conflicting status {Status}. Skipping.",
+                                currentAttempt.Id, currentAttempt.Status);
+                            break;
+                        }
 
-                    await dbContext.SaveChangesAsync(ct);
-                    resolvedCount++;
+                        var successEvent = new PaymentSucceeded(
+                            currentAttempt.OrderId,
+                            currentAttempt.Id,
+                            transactionId,
+                            currentAttempt.Amount,
+                            currentAttempt.Currency);
+
+                        var envelope = MessageEnvelope<PaymentSucceeded>.Create(successEvent, currentAttempt.OrderId.ToString());
+
+                        await dbContext.SaveChangesAsync(ct);
+                        resolvedCount++;
+
+                        await publishEndpoint.Publish(envelope, ct);
+                        await publishEndpoint.Publish(envelope.Payload, ct);
+                        break;
+                    }
+                    else if (queryResult.Status == PaymentProviderStatus.Failed)
+                    {
+                        var reason = queryResult.ErrorMessage ?? "Payment confirmed failed during reconciliation.";
+                        if (currentAttempt.Status == PaymentStatus.PaymentUnknown)
+                        {
+                            currentAttempt.MarkFailed(reason, queryResult.ProviderTransactionId);
+                            _logger.LogInformation("Reconciled PaymentAttempt {AttemptId} for Order {OrderId} as Failed. Reason: {Reason}",
+                                currentAttempt.Id, currentAttempt.OrderId, reason);
+                        }
+                        else if (currentAttempt.Status != PaymentStatus.Failed)
+                        {
+                            _logger.LogWarning("PaymentAttempt {AttemptId} already resolved to conflicting status {Status}. Skipping.",
+                                currentAttempt.Id, currentAttempt.Status);
+                            break;
+                        }
+
+                        var rejectedEvent = new PaymentRejected(
+                            currentAttempt.OrderId,
+                            currentAttempt.Id,
+                            reason);
+
+                        var envelope = MessageEnvelope<PaymentRejected>.Create(rejectedEvent, currentAttempt.OrderId.ToString());
+
+                        await dbContext.SaveChangesAsync(ct);
+                        resolvedCount++;
+
+                        await publishEndpoint.Publish(envelope, ct);
+                        await publishEndpoint.Publish(envelope.Payload, ct);
+                        break;
+                    }
+                    else
+                    {
+                        _logger.LogInformation("PaymentAttempt {AttemptId} for Order {OrderId} is still Unknown at provider. Will re-check on next cycle.",
+                            currentAttempt.Id, currentAttempt.OrderId);
+                        break;
+                    }
                 }
-                else if (queryResult.Status == PaymentProviderStatus.Failed)
+                catch (DbUpdateConcurrencyException ex) when (retry < maxRetries - 1)
                 {
-                    var reason = queryResult.ErrorMessage ?? "Payment confirmed failed during reconciliation.";
-                    attempt.MarkFailed(reason, queryResult.ProviderTransactionId);
-                    _logger.LogInformation("Reconciled PaymentAttempt {AttemptId} for Order {OrderId} as Failed. Reason: {Reason}",
-                        attempt.Id, attempt.OrderId, reason);
-
-                    var rejectedEvent = new PaymentRejected(
-                        attempt.OrderId,
-                        attempt.Id,
-                        reason);
-
-                    var envelope = MessageEnvelope<PaymentRejected>.Create(rejectedEvent, attempt.OrderId.ToString());
-                    await publishEndpoint.Publish(envelope, ct);
-                    await publishEndpoint.Publish(envelope.Payload, ct);
-
-                    await dbContext.SaveChangesAsync(ct);
-                    resolvedCount++;
+                    _logger.LogWarning(ex, "Concurrency conflict reconciling PaymentAttempt {AttemptId}, retry attempt {Retry}",
+                        attempt.Id, retry + 1);
+                    await Task.Delay(50 * (retry + 1), ct);
                 }
-                else
+                catch (DbUpdateConcurrencyException ex)
                 {
-                    _logger.LogInformation("PaymentAttempt {AttemptId} for Order {OrderId} is still Unknown at provider. Will re-check on next cycle.",
-                        attempt.Id, attempt.OrderId);
+                    _logger.LogWarning(ex, "Concurrency conflict reconciling PaymentAttempt {AttemptId}. Retries exhausted; state was modified concurrently.", attempt.Id);
+                    break;
                 }
-            }
-            catch (DbUpdateConcurrencyException ex)
-            {
-                _logger.LogWarning(ex, "Concurrency conflict reconciling PaymentAttempt {AttemptId}. State was modified concurrently.", attempt.Id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error reconciling PaymentAttempt {AttemptId}", attempt.Id);
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error reconciling PaymentAttempt {AttemptId}", attempt.Id);
+                    break;
+                }
             }
         }
 
