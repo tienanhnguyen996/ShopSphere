@@ -20,6 +20,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BuildingBlocks\BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\Inventory.Domain\Inventory.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\Inventory.Application\Inventory.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
