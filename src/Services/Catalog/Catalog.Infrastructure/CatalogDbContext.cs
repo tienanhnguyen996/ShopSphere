@@ -1,15 +1,18 @@
 using Microsoft.EntityFrameworkCore;
 using ShopSphere.BuildingBlocks.Outbox;
-using ShopSphere.BuildingBlocks.Persistence.Interceptors;
+using ShopSphere.BuildingBlocks.Persistence.Extensions;
 using ShopSphere.Services.Catalog.Domain;
+
+using ShopSphere.Services.Catalog.Application.Common.Interfaces;
 
 namespace ShopSphere.Services.Catalog.Infrastructure;
 
-public class CatalogDbContext : DbContext
+public class CatalogDbContext : DbContext, ICatalogDbContext
 {
     public const string DefaultSchema = "catalog";
 
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<PriceHistory> PriceHistories => Set<PriceHistory>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public CatalogDbContext(DbContextOptions<CatalogDbContext> options) : base(options) { }
@@ -71,6 +74,40 @@ public class CatalogDbContext : DbContext
             builder.Property(p => p.UpdatedAtUtc);
         });
 
+        modelBuilder.Entity<PriceHistory>(builder =>
+        {
+            builder.ToTable("PriceHistory");
+            builder.HasKey(h => h.Id);
+
+            builder.Property(h => h.ProductId)
+                .IsRequired();
+
+            builder.Property(h => h.Sku)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            builder.Property(h => h.OldPriceAmount)
+                .HasPrecision(18, 2)
+                .IsRequired();
+
+            builder.Property(h => h.NewPriceAmount)
+                .HasPrecision(18, 2)
+                .IsRequired();
+
+            builder.Property(h => h.Currency)
+                .HasMaxLength(3)
+                .IsRequired();
+
+            builder.Property(h => h.PriceVersion)
+                .IsRequired();
+
+            builder.Property(h => h.ChangedAtUtc)
+                .IsRequired();
+
+            builder.HasIndex(h => h.ProductId);
+            builder.HasIndex(h => h.Sku);
+        });
+
         modelBuilder.Entity<OutboxMessage>(builder =>
         {
             builder.ToTable("OutboxMessages");
@@ -91,5 +128,7 @@ public class CatalogDbContext : DbContext
 
             builder.HasIndex(o => o.ProcessedAtUtc);
         });
+
+        modelBuilder.AddShopSphereOutboxEntities();
     }
 }

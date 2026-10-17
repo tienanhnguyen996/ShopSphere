@@ -1,9 +1,12 @@
+using System.Text.RegularExpressions;
 using ShopSphere.BuildingBlocks.Common.Domain;
 
 namespace ShopSphere.Services.Catalog.Domain;
 
 public sealed class Sku : ValueObject
 {
+    private static readonly Regex SkuPattern = new(@"^[A-Z0-9-_]+$", RegexOptions.Compiled);
+
     public string Value { get; }
 
     private Sku() => Value = string.Empty;
@@ -19,6 +22,11 @@ public sealed class Sku : ValueObject
         if (trimmed.Length is < 3 or > 50)
         {
             throw new ArgumentException("SKU length must be between 3 and 50 characters.", nameof(value));
+        }
+
+        if (!SkuPattern.IsMatch(trimmed))
+        {
+            throw new ArgumentException("SKU must be alphanumeric (letters, numbers, hyphens, and underscores).", nameof(value));
         }
 
         Value = trimmed;

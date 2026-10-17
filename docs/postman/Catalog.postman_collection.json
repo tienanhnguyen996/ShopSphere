@@ -1,0 +1,167 @@
+{
+	"info": {
+		"_postman_id": "c7a8b412-9c3f-42e1-a07e-catalog00001",
+		"name": "ShopSphere - Catalog Service",
+		"description": "API collection for ShopSphere Catalog Service managing products, price updates, SKU lookups, and health checks.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Returns the health status of Catalog Service and its dependencies (SQL Server, Redis, RabbitMQ)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Products",
+			"item": [
+				{
+					"name": "Create Product",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Logitech MX Master 3S\",\n  \"description\": \"Wireless Performance Mouse\",\n  \"sku\": \"MOU-LOGI-MX3S\",\n  \"priceAmount\": 99.99,\n  \"currency\": \"USD\",\n  \"activateImmediately\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/catalog/products",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"catalog",
+								"products"
+							]
+						},
+						"description": "Creates a new product in the catalog with SKU, price, and active status."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Products (Paged)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/catalog/products?page=1&pageSize=20&onlyActive=true",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"catalog",
+								"products"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "20"
+								},
+								{
+									"key": "onlyActive",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Retrieves paginated products with optional active status filter."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Product by SKU",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/catalog/products/{{sku}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"catalog",
+								"products",
+								"{{sku}}"
+							]
+						},
+						"description": "Retrieves product details by its unique SKU (served via Redis cache when available)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Product Price",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"newPrice\": 89.99,\n  \"currency\": \"USD\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/catalog/products/{{sku}}/price",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"catalog",
+								"products",
+								"{{sku}}",
+								"price"
+							]
+						},
+						"description": "Updates product price, increments price version, records price history, and invalidates Redis cache."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5001"
+		},
+		{
+			"key": "sku",
+			"value": "MOU-LOGI-MX3S"
+		}
+	]
+}

@@ -1,5 +1,7 @@
+using FluentAssertions;
 using ShopSphere.Services.Catalog.Domain;
 using ShopSphere.Services.Catalog.Domain.Events;
+using ShopSphere.Services.Catalog.Domain.Exceptions;
 
 namespace ShopSphere.Services.Catalog.Tests.Unit;
 
@@ -57,6 +59,34 @@ public class ProductTests
         act.Should().Throw<ArgumentException>();
     }
 
+    [Theory]
+    [InlineData("SKU@123")]
+    [InlineData("SKU 123")]
+    [InlineData("SKU#ABC")]
+    [InlineData("SKU!")]
+    public void Create_WithInvalidSkuCharacters_ShouldThrowArgumentException(string invalidSku)
+    {
+        // Arrange & Act
+        var act = () => new Sku(invalidSku);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*alphanumeric*");
+    }
+
+    [Theory]
+    [InlineData("PROD-123")]
+    [InlineData("ITEM_456")]
+    [InlineData("ABC123XYZ")]
+    public void Create_WithValidSku_ShouldSucceed(string validSku)
+    {
+        // Act
+        var sku = new Sku(validSku);
+
+        // Assert
+        sku.Value.Should().Be(validSku);
+    }
+
     [Fact]
     public void Create_WithNegativePrice_ShouldThrowArgumentOutOfRangeException()
     {
@@ -65,6 +95,22 @@ public class ProductTests
 
         // Assert
         act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void Create_WithZeroPrice_ShouldThrowDomainValidationException()
+    {
+        // Arrange & Act
+        var act = () => Product.Create(
+            Guid.NewGuid(),
+            "Mechanical Keyboard",
+            "Description",
+            new Sku("KB-RGB-001"),
+            Money.Zero("USD"));
+
+        // Assert
+        act.Should().Throw<DomainValidationException>()
+            .WithMessage("*greater than zero*");
     }
 
     [Fact]
@@ -95,6 +141,25 @@ public class ProductTests
                 e.OldPrice.Amount == 100m &&
                 e.NewPrice.Amount == 120m &&
                 e.NewPriceVersion == 2);
+    }
+
+    [Fact]
+    public void UpdatePrice_WithZeroOrNegativeAmount_ShouldThrowDomainValidationException()
+    {
+        // Arrange
+        var product = Product.Create(
+            Guid.NewGuid(),
+            "Mechanical Keyboard",
+            "Description",
+            new Sku("KB-RGB-001"),
+            new Money(100m, "USD"));
+
+        // Act
+        var act = () => product.UpdatePrice(Money.Zero("USD"));
+
+        // Assert
+        act.Should().Throw<DomainValidationException>()
+            .WithMessage("*greater than zero*");
     }
 
     [Fact]
@@ -152,6 +217,27 @@ public class ProductTests
 
         // Assert
         product.Status.Should().Be(ProductStatus.Discontinued);
+        product.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Activate_WhenDiscontinued_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var product = Product.Create(
+            Guid.NewGuid(),
+            "Mechanical Keyboard",
+            "Description",
+            new Sku("KB-RGB-001"),
+            new Money(100m, "USD"));
+        product.Discontinue();
+
+        // Act
+        var act = () => product.Activate();
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*cannot be reactivated*");
     }
 
     [Fact]
@@ -200,5 +286,55 @@ public class ProductTests
         m1.Should().Be(m2);
         m1.GetHashCode().Should().Be(m2.GetHashCode());
         m1.Should().NotBe(m3);
+    }
+
+    [Fact]
+    public void Money_ArithmeticOperations_ShouldCalculateCorrectly()
+    {
+        // Arrange
+        var m1 = new Money(50.25m, "USD");
+        var m2 = new Money(25.50m, "USD");
+
+        // Act
+        var sum = m1 + m2;
+        var diff = m1 - m2;
+        var multiplied = m1 * 2m;
+        var multipliedReverse = 3m * m2;
+
+        // Assert
+        sum.Should().Be(new Money(75.75m, "USD"));
+        diff.Should().Be(new Money(24.75m, "USD"));
+        multiplied.Should().Be(new Money(100.50m, "USD"));
+        multipliedReverse.Should().Be(new Money(76.50m, "USD"));
+    }
+
+    [Fact]
+    public void Money_ArithmeticWithMismatchedCurrency_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var m1 = new Money(50m, "USD");
+        var m2 = new Money(50m, "EUR");
+
+        // Act & Assert
+        var actAdd = () => _ = m1 + m2;
+        actAdd.Should().Throw<InvalidOperationException>()
+            .WithMessage("*different currencies*");
+
+        var actSub = () => _ = m1 - m2;
+        actSub.Should().Throw<InvalidOperationException>()
+            .WithMessage("*different currencies*");
+    }
+
+    [Fact]
+    public void Money_SubtractLargerAmount_ShouldThrowDomainValidationException()
+    {
+        // Arrange
+        var m1 = new Money(10m, "USD");
+        var m2 = new Money(20m, "USD");
+
+        // Act & Assert
+        var act = () => _ = m1 - m2;
+        act.Should().Throw<DomainValidationException>()
+            .WithMessage("*negative*");
     }
 }
