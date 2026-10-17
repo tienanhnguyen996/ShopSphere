@@ -1,0 +1,224 @@
+{
+	"info": {
+		"_postman_id": "a9b8c7d6-cart-4114-8f31-cartservice001",
+		"name": "ShopSphere - Cart Service",
+		"description": "API collection for ShopSphere Cart Service managing user shopping carts, live catalog price verification, and checkout quotes.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Returns health status of Cart Service dependencies (Redis cache, Catalog HTTP dependency)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Cart",
+			"item": [
+				{
+					"name": "Get Cart",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/cart",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"cart"
+							]
+						},
+						"description": "Retrieves the current shopping cart for the specified customer."
+					},
+					"response": []
+				},
+				{
+					"name": "Add Item to Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sku\": \"MOU-LOGI-MX3S\",\n  \"quantity\": 2\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/cart/items",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"cart",
+								"items"
+							]
+						},
+						"description": "Adds a product item to the customer's cart or increments quantity if already present."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Cart Item Quantity",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"quantity\": 3\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/cart/items/{{sku}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"cart",
+								"items",
+								"{{sku}}"
+							]
+						},
+						"description": "Sets exact quantity for a SKU in the customer's cart. Quantity of 0 removes the item."
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Cart Item",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/cart/items/{{sku}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"cart",
+								"items",
+								"{{sku}}"
+							]
+						},
+						"description": "Removes a specific SKU item from the customer's cart."
+					},
+					"response": []
+				},
+				{
+					"name": "Clear Cart",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/cart",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"cart"
+							]
+						},
+						"description": "Removes all items from the customer's shopping cart."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Checkout Quote",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Customer-Id",
+								"value": "{{customerId}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/cart/quote",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"cart",
+								"quote"
+							]
+						},
+						"description": "Verifies cart items against Catalog Service, freezes unit prices and price versions, and computes checkout quote subtotal."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5002"
+		},
+		{
+			"key": "customerId",
+			"value": "cust-demo-123"
+		},
+		{
+			"key": "sku",
+			"value": "MOU-LOGI-MX3S"
+		}
+	]
+}
