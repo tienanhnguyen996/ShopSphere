@@ -258,6 +258,44 @@ public class CqrsHandlerAndValidationTests
         dbContextMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task UpdateProductPriceCommandHandler_WhenConcurrencyConflictOccurs_ShouldReturnConflictError()
+    {
+        // Arrange
+        var product = Product.Create(
+            Guid.NewGuid(),
+            "Mechanical Keyboard",
+            "Desc",
+            new Sku("KB-RGB-001"),
+            new Money(100m, "USD"));
+
+        var productsMock = MockDbSetExtensions.CreateMockDbSet(new List<Product> { product });
+        var priceHistoriesMock = MockDbSetExtensions.CreateMockDbSet(new List<PriceHistory>());
+        var outboxMessagesMock = MockDbSetExtensions.CreateMockDbSet(new List<OutboxMessage>());
+
+        var dbContextMock = new Mock<ICatalogDbContext>();
+        dbContextMock.Setup(x => x.Products).Returns(productsMock.Object);
+        dbContextMock.Setup(x => x.PriceHistories).Returns(priceHistoriesMock.Object);
+        dbContextMock.Setup(x => x.OutboxMessages).Returns(outboxMessagesMock.Object);
+        dbContextMock.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException("Concurrency conflict"));
+
+        var cacheServiceMock = new Mock<ICacheService>();
+
+        var handler = new UpdateProductPriceCommandHandler(dbContextMock.Object, _updatePriceValidator, cacheServiceMock.Object);
+        var command = new UpdateProductPriceCommand("KB-RGB-001", 125m, "USD");
+
+        // Act
+        var result = await handler.HandleAsync(command);
+
+        // Assert
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Conflict);
+        result.Error.Code.Should().Be("Product.Conflict");
+        result.Error.Description.Should().Contain("modified by another operation");
+        cacheServiceMock.Verify(x => x.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     #endregion
 
     #region Query Tests
