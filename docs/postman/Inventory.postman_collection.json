@@ -1,0 +1,101 @@
+{
+	"info": {
+		"_postman_id": "b1c2d3e4-inve-4114-8f31-inventorysrv01",
+		"name": "ShopSphere - Inventory Service",
+		"description": "API collection for ShopSphere Inventory Service managing real-time physical stock levels, reservation holds, commit workflows, and intake adjustments.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Returns health status of Inventory Service dependencies (SQL Server database, RabbitMQ bus)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Inventory",
+			"item": [
+				{
+					"name": "Get Stock by SKU",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/inventory/{{sku}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"inventory",
+								"{{sku}}"
+							]
+						},
+						"description": "Retrieves the real-time stock allocation breakdown for a product SKU directly from SQL Server."
+					},
+					"response": []
+				},
+				{
+					"name": "Adjust Stock",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sku\": \"ELEC-0001\",\n  \"quantity\": 50,\n  \"reason\": \"Warehouse intake batch #101\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/inventory/adjustments",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"inventory",
+								"adjustments"
+							]
+						},
+						"description": "Applies a positive intake or negative shrinkage adjustment to available stock for a product SKU."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5003",
+			"type": "string"
+		},
+		{
+			"key": "sku",
+			"value": "ELEC-0001",
+			"type": "string"
+		}
+	]
+}
