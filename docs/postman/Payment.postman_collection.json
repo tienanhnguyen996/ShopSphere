@@ -1,0 +1,145 @@
+{
+	"info": {
+		"_postman_id": "c2d3e4f5-paym-4114-8f31-paymentsrv01",
+		"name": "ShopSphere - Payment Service",
+		"description": "API collection for ShopSphere Payment Service managing charge attempts, mock provider interactions, timeout handling (PaymentUnknown), and webhooks.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Returns health status of Payment Service dependencies (SQL Server database, RabbitMQ bus)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Payment Attempts",
+			"item": [
+				{
+					"name": "Get Payment Attempt by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payment/attempts/{{paymentAttemptId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payment",
+								"attempts",
+								"{{paymentAttemptId}}"
+							]
+						},
+						"description": "Retrieves payment attempt details including status, provider transaction ID, failure reason, and amount."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment Attempt by Order ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payment/orders/{{orderId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payment",
+								"orders",
+								"{{orderId}}"
+							]
+						},
+						"description": "Retrieves the latest payment attempt for an order."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Webhooks",
+			"item": [
+				{
+					"name": "Provider Webhook Callback",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Payment-Signature",
+								"value": "{{webhookSignature}}",
+								"description": "HMAC-SHA256 signature calculated with webhook secret."
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"eventId\": \"evt_sample_001\",\n  \"eventType\": \"payment.succeeded\",\n  \"paymentAttemptId\": \"{{paymentAttemptId}}\",\n  \"providerTransactionId\": \"mock_tx_webhook_999\",\n  \"status\": \"succeeded\",\n  \"reason\": null\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/payment/webhooks/mock-provider",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"payment",
+								"webhooks",
+								"mock-provider"
+							]
+						},
+						"description": "Receives authenticated provider webhook callback and transitions PaymentUnknown/Pending attempts."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5004",
+			"type": "string"
+		},
+		{
+			"key": "paymentAttemptId",
+			"value": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+			"type": "string"
+		},
+		{
+			"key": "orderId",
+			"value": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
+			"type": "string"
+		},
+		{
+			"key": "webhookSignature",
+			"value": "sha256=sample_valid_signature_hash",
+			"type": "string"
+		}
+	]
+}
