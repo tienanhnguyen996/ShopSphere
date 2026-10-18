@@ -51,6 +51,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventory.Application", "sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventory.Infrastructure", "src\Services\Inventory\Inventory.Infrastructure\Inventory.Infrastructure.csproj", "{8815C195-6311-4B3C-B57F-07B29F527390}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Inventory.Worker", "src\Services\Inventory\Inventory.Worker\Inventory.Worker.csproj", "{24F640D6-785A-47AE-B2E4-4B3952BC619E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -132,6 +134,10 @@ Global
 		{8815C195-6311-4B3C-B57F-07B29F527390}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8815C195-6311-4B3C-B57F-07B29F527390}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8815C195-6311-4B3C-B57F-07B29F527390}.Release|Any CPU.Build.0 = Release|Any CPU
+		{24F640D6-785A-47AE-B2E4-4B3952BC619E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{24F640D6-785A-47AE-B2E4-4B3952BC619E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{24F640D6-785A-47AE-B2E4-4B3952BC619E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{24F640D6-785A-47AE-B2E4-4B3952BC619E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{E9696F4B-59DC-4335-A44E-BA51AA6B8C6E} = {0EB82289-1203-402A-A768-DFDF63A4E7A7}
@@ -156,5 +162,6 @@ Global
 		{6311318F-89F1-4B41-9C79-0B9E8D54E8A2} = {22AA82AC-9C39-4859-82A6-F48F2F380061}
 		{1474968A-E7F8-4B2B-B9C4-1C05F46E23FD} = {D48942B9-C6E4-44DC-B1C9-45739A988EE6}
 		{8815C195-6311-4B3C-B57F-07B29F527390} = {D48942B9-C6E4-44DC-B1C9-45739A988EE6}
+		{24F640D6-785A-47AE-B2E4-4B3952BC619E} = {D48942B9-C6E4-44DC-B1C9-45739A988EE6}
 	EndGlobalSection
 EndGlobal
