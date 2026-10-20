@@ -6,6 +6,10 @@ Write-Host "================================"
 
 $failed = $false
 
+if (Test-Path "$env:USERPROFILE\.dotnet") {
+    $env:PATH = "$env:USERPROFILE\.dotnet;$env:PATH"
+}
+
 # 1. .NET Format Check
 Write-Host "`nChecking .NET formatting..." -ForegroundColor Cyan
 $dotnetVersion = dotnet --version 2>$null
