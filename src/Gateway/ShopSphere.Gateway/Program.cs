@@ -28,7 +28,7 @@ var app = builder.Build();
 
 app.UseCors(frontendCorsPolicy);
 
-app.UseMiddleware<GatewayErrorHandlingMiddleware>();
+app.UseGatewayErrorHandling();
 
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
