@@ -5,6 +5,8 @@ using ShopSphere.Services.Identity.Application.Auth.Commands.RefreshToken;
 using ShopSphere.Services.Identity.Application.Auth.Commands.Register;
 using ShopSphere.Services.Identity.Application.Auth.Commands.RevokeToken;
 using ShopSphere.Services.Identity.Application.Auth.Queries.GetCurrentUser;
+using ShopSphere.Services.Identity.Application.Common.Interfaces;
+using ShopSphere.Services.Identity.Application.Common.Services;
 using ShopSphere.Services.Identity.Application.Roles.Queries.GetRoles;
 using ShopSphere.Services.Identity.Application.Users.Commands.AssignRole;
 using ShopSphere.Services.Identity.Application.Users.Commands.RemoveRole;
@@ -17,6 +19,8 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddValidatorsFromAssemblyContaining<RegisterCommandValidator>();
+
+        services.AddScoped<IUserRolePermissionResolver, UserRolePermissionResolver>();
 
         services.AddScoped<RegisterCommandHandler>();
         services.AddScoped<LoginCommandHandler>();

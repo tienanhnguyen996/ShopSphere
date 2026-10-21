@@ -12,15 +12,18 @@ public class RefreshTokenCommandHandler
 {
     private readonly IIdentityDbContext _dbContext;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IUserRolePermissionResolver _rolePermissionResolver;
     private readonly IValidator<RefreshTokenCommand> _validator;
 
     public RefreshTokenCommandHandler(
         IIdentityDbContext dbContext,
         IJwtTokenGenerator jwtTokenGenerator,
+        IUserRolePermissionResolver rolePermissionResolver,
         IValidator<RefreshTokenCommand> validator)
     {
         _dbContext = dbContext;
         _jwtTokenGenerator = jwtTokenGenerator;
+        _rolePermissionResolver = rolePermissionResolver;
         _validator = validator;
     }
 
@@ -92,7 +95,7 @@ public class RefreshTokenCommandHandler
         token.Revoke(DateTime.UtcNow, newToken.Id);
         _dbContext.RefreshTokens.Add(newToken);
 
-        var (roleNames, permissions) = await ResolveRolesAndPermissionsAsync(user, ct);
+        var (roleNames, permissions) = await _rolePermissionResolver.ResolveAsync(user, ct);
         var accessToken = _jwtTokenGenerator.GenerateToken(user, roleNames, permissions);
 
         await _dbContext.SaveChangesAsync(ct);
@@ -101,41 +104,5 @@ public class RefreshTokenCommandHandler
             accessToken,
             newRawToken,
             DateTime.UtcNow.AddMinutes(15)));
-    }
-
-    private async Task<(IReadOnlyList<string> Roles, IReadOnlyList<string> Permissions)> ResolveRolesAndPermissionsAsync(User user, CancellationToken ct)
-    {
-        var roleIds = user.UserRoles.Select(ur => ur.RoleId).ToList();
-        if (roleIds.Count == 0)
-        {
-            roleIds = await _dbContext.UserRoles
-                .Where(ur => ur.UserId == user.Id)
-                .Select(ur => ur.RoleId)
-                .ToListAsync(ct);
-        }
-
-        if (roleIds.Count == 0)
-        {
-            return (Array.Empty<string>(), Array.Empty<string>());
-        }
-
-        var roles = await _dbContext.Roles
-            .Where(r => roleIds.Contains(r.Id))
-            .ToListAsync(ct);
-        var roleNames = roles.Select(r => r.Name).Distinct().ToList();
-
-        var permissionIds = await _dbContext.RolePermissions
-            .Where(rp => roleIds.Contains(rp.RoleId))
-            .Select(rp => rp.PermissionId)
-            .Distinct()
-            .ToListAsync(ct);
-
-        var permissions = await _dbContext.Permissions
-            .Where(p => permissionIds.Contains(p.Id))
-            .Select(p => p.Code)
-            .Distinct()
-            .ToListAsync(ct);
-
-        return (roleNames, permissions);
     }
 }

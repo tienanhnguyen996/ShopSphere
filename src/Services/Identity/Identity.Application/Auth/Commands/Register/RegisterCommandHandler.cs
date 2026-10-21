@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using ShopSphere.BuildingBlocks.Common.Results;
+using ShopSphere.BuildingBlocks.Messaging.Contracts;
 using ShopSphere.BuildingBlocks.Messaging.Serialization;
 using ShopSphere.BuildingBlocks.Outbox;
 using ShopSphere.Services.Identity.Application.Common.Interfaces;
@@ -15,17 +16,20 @@ public class RegisterCommandHandler
     private readonly IIdentityDbContext _dbContext;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly IPasswordHashService _passwordHashService;
+    private readonly IUserRolePermissionResolver _rolePermissionResolver;
     private readonly IValidator<RegisterCommand> _validator;
 
     public RegisterCommandHandler(
         IIdentityDbContext dbContext,
         IJwtTokenGenerator jwtTokenGenerator,
         IPasswordHashService passwordHashService,
+        IUserRolePermissionResolver rolePermissionResolver,
         IValidator<RegisterCommand> validator)
     {
         _dbContext = dbContext;
         _jwtTokenGenerator = jwtTokenGenerator;
         _passwordHashService = passwordHashService;
+        _rolePermissionResolver = rolePermissionResolver;
         _validator = validator;
     }
 
@@ -54,18 +58,18 @@ public class RegisterCommandHandler
         if (customerRole is not null)
         {
             user.AssignRole(customerRole.Id);
-            _dbContext.UserRoles.Add(new UserRole(user.Id, customerRole.Id));
         }
 
         _dbContext.Users.Add(user);
 
         var userRegisteredEvent = new UserRegistered(user.Id, user.Email, user.FullName, DateTime.UtcNow);
+        var envelope = MessageEnvelope<UserRegistered>.Create(userRegisteredEvent, user.Id.ToString());
         var outboxMessage = new OutboxMessage
         {
-            Id = Guid.NewGuid(),
-            Type = typeof(UserRegistered).FullName ?? nameof(UserRegistered),
-            Content = ShopSphereJsonDefaults.Serialize(userRegisteredEvent),
-            OccurredAtUtc = userRegisteredEvent.OccurredAtUtc
+            Id = envelope.MessageId,
+            Type = typeof(MessageEnvelope<UserRegistered>).FullName ?? nameof(MessageEnvelope<UserRegistered>),
+            Content = ShopSphereJsonDefaults.Serialize(envelope),
+            OccurredAtUtc = envelope.OccurredAtUtc
         };
         _dbContext.OutboxMessages.Add(outboxMessage);
 
@@ -76,40 +80,12 @@ public class RegisterCommandHandler
 
         await _dbContext.SaveChangesAsync(ct);
 
-        var (roleNames, permissions) = await ResolveRolesAndPermissionsAsync(user, ct);
+        var (roleNames, permissions) = await _rolePermissionResolver.ResolveAsync(user, ct);
         var accessToken = _jwtTokenGenerator.GenerateToken(user, roleNames, permissions);
 
         return Result.Success(new TokenResponse(
             accessToken,
             rawRefreshToken,
             DateTime.UtcNow.AddMinutes(15)));
-    }
-
-    private async Task<(IReadOnlyList<string> Roles, IReadOnlyList<string> Permissions)> ResolveRolesAndPermissionsAsync(User user, CancellationToken ct)
-    {
-        var roleIds = user.UserRoles.Select(ur => ur.RoleId).ToList();
-        if (roleIds.Count == 0)
-        {
-            return (Array.Empty<string>(), Array.Empty<string>());
-        }
-
-        var roles = await _dbContext.Roles
-            .Where(r => roleIds.Contains(r.Id))
-            .ToListAsync(ct);
-        var roleNames = roles.Select(r => r.Name).Distinct().ToList();
-
-        var permissionIds = await _dbContext.RolePermissions
-            .Where(rp => roleIds.Contains(rp.RoleId))
-            .Select(rp => rp.PermissionId)
-            .Distinct()
-            .ToListAsync(ct);
-
-        var permissions = await _dbContext.Permissions
-            .Where(p => permissionIds.Contains(p.Id))
-            .Select(p => p.Code)
-            .Distinct()
-            .ToListAsync(ct);
-
-        return (roleNames, permissions);
     }
 }
