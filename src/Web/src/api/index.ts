@@ -10,7 +10,7 @@ export {
   inventoryOpenAPI,
   paymentOpenAPI,
   apiConfigs,
-} from './client.ts';
+} from './client';
 
 // Common core utilities
 export { ApiError } from './generated/catalog/core/ApiError';

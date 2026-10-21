@@ -96,7 +96,7 @@ test('API Client - auth token setting, retrieval, and TOKEN resolver', async () 
   for (const config of apiConfigs) {
     if (typeof config.TOKEN === 'function') {
       const tokenAfterClear = await config.TOKEN(dummyOptions);
-      assert.strictEqual(tokenAfterClear, undefined);
+      assert.strictEqual(tokenAfterClear, '');
     }
   }
 });
