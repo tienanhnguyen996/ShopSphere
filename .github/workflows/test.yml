@@ -5,14 +5,16 @@ on:
     branches: [main]
     paths-ignore:
       - "**.md"
-      - "docs/**"
+      - "docs/adr/**"
+      - "docs/requirements/**"
       - ".github/pull_request_template.md"
       - "LICENSE"
   pull_request:
     branches: [main]
     paths-ignore:
       - "**.md"
-      - "docs/**"
+      - "docs/adr/**"
+      - "docs/requirements/**"
       - ".github/pull_request_template.md"
       - "LICENSE"
 
@@ -99,6 +101,11 @@ jobs:
 
       - name: Install Dependencies
         run: pnpm install
+
+      - name: Check OpenAPI Client Drift
+        run: |
+          pnpm --dir src/Web run generate-client
+          git diff --exit-code src/Web/src/api/generated
 
       - name: Run Web Tests
         run: pnpm --dir src/Web test

@@ -101,7 +101,7 @@ test('API Client - auth token setting, retrieval, and TOKEN resolver', async () 
   }
 });
 
-test('API Client - all OpenAPI.BASE configs are initialized to /api', () => {
+test('API Client - all OpenAPI.BASE configs are initialized to empty string (specs include /api prefix)', () => {
   assert.strictEqual(apiConfigs.length, 4, 'Should configure 4 service clients');
 
   const namedConfigs = [
@@ -112,7 +112,7 @@ test('API Client - all OpenAPI.BASE configs are initialized to /api', () => {
   ];
 
   for (const { name, config } of namedConfigs) {
-    assert.strictEqual(config.BASE, '/api', `${name} client BASE should be /api`);
+    assert.strictEqual(config.BASE, '', `${name} client BASE should be empty string`);
     assert.strictEqual(
       config.WITH_CREDENTIALS,
       true,
@@ -124,4 +124,15 @@ test('API Client - all OpenAPI.BASE configs are initialized to /api', () => {
       `${name} client CREDENTIALS should be "include"`
     );
   }
+});
+
+test('API Client - exports client aliases matching specification in index.ts', async () => {
+  const fs = await import('node:fs');
+  const indexPath = new URL('./index.ts', import.meta.url);
+  const indexContent = fs.readFileSync(indexPath, 'utf-8');
+
+  assert.match(indexContent, /ProductsService as catalogApi/);
+  assert.match(indexContent, /CartService as cartApi/);
+  assert.match(indexContent, /InventoryService as inventoryApi/);
+  assert.match(indexContent, /PaymentService as paymentApi/);
 });
