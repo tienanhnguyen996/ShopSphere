@@ -27,6 +27,7 @@ public static class IdentityDbSeeder
         [ShopSpherePermissions.InventoryAdjust] = (Guid.Parse("10000000-0000-0000-0000-000000000006"), "Adjust inventory stock"),
         [ShopSpherePermissions.CartManage] = (Guid.Parse("10000000-0000-0000-0000-000000000007"), "Manage shopping cart"),
         [ShopSpherePermissions.PaymentRead] = (Guid.Parse("10000000-0000-0000-0000-000000000008"), "Read payment transactions"),
+        [ShopSpherePermissions.PaymentCreate] = (Guid.Parse("10000000-0000-0000-0000-000000000013"), "Create payment transactions"),
         [ShopSpherePermissions.PaymentRefund] = (Guid.Parse("10000000-0000-0000-0000-000000000009"), "Process payment refunds"),
         [ShopSpherePermissions.UsersRead] = (Guid.Parse("10000000-0000-0000-0000-000000000010"), "Read user accounts and roles"),
         [ShopSpherePermissions.UsersManage] = (Guid.Parse("10000000-0000-0000-0000-000000000011"), "Manage user accounts and roles"),

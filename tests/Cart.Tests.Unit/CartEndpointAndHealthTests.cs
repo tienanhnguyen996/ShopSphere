@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Distributed;
@@ -113,7 +114,7 @@ public class CartEndpointAndHealthTests
     }
 
     [Fact]
-    public void GetCustomerId_WhenHeaderMissing_ShouldReturnValidationFailure()
+    public void GetCustomerId_WhenHeaderMissingAndUserUnauthenticated_ShouldReturnValidationFailure()
     {
         // Arrange
         var httpContext = new DefaultHttpContext();
@@ -124,6 +125,55 @@ public class CartEndpointAndHealthTests
         // Assert
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Cart.CustomerIdRequired");
+    }
+
+    [Fact]
+    public void GetCustomerId_WhenUserAuthenticatedWithSubClaim_ShouldReturnClaimValue()
+    {
+        // Arrange
+        var httpContext = new DefaultHttpContext();
+        var claims = new[] { new Claim("sub", "cust-sub-123") };
+        httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
+
+        // Act
+        var result = CartApiEndpoints.GetCustomerId(httpContext);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("cust-sub-123");
+    }
+
+    [Fact]
+    public void GetCustomerId_WhenUserAuthenticatedWithNameIdentifierClaim_ShouldReturnClaimValue()
+    {
+        // Arrange
+        var httpContext = new DefaultHttpContext();
+        var claims = new[] { new Claim(ClaimTypes.NameIdentifier, "cust-nameid-456") };
+        httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
+
+        // Act
+        var result = CartApiEndpoints.GetCustomerId(httpContext);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("cust-nameid-456");
+    }
+
+    [Fact]
+    public void GetCustomerId_WhenUserAuthenticatedAndHeaderPresent_ShouldPrioritizeClaimOverHeader()
+    {
+        // Arrange
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers["X-Customer-Id"] = "guest-header-id";
+        var claims = new[] { new Claim("sub", "authenticated-cust-789") };
+        httpContext.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
+
+        // Act
+        var result = CartApiEndpoints.GetCustomerId(httpContext);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("authenticated-cust-789");
     }
 
     [Fact]
