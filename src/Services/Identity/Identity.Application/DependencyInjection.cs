@@ -10,6 +10,7 @@ using ShopSphere.Services.Identity.Application.Common.Services;
 using ShopSphere.Services.Identity.Application.Roles.Queries.GetRoles;
 using ShopSphere.Services.Identity.Application.Users.Commands.AssignRole;
 using ShopSphere.Services.Identity.Application.Users.Commands.RemoveRole;
+using ShopSphere.Services.Identity.Application.Users.Queries.GetUserById;
 using ShopSphere.Services.Identity.Application.Users.Queries.GetUsers;
 
 namespace ShopSphere.Services.Identity.Application;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<AssignRoleCommandHandler>();
         services.AddScoped<RemoveRoleCommandHandler>();
         services.AddScoped<GetUsersQueryHandler>();
+        services.AddScoped<GetUserByIdQueryHandler>();
         services.AddScoped<GetRolesQueryHandler>();
 
         return services;
