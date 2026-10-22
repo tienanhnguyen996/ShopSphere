@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using ShopSphere.BuildingBlocks.Security;
 using ShopSphere.Services.Inventory.Application.Stock.Commands.AdjustStock;
 using ShopSphere.Services.Inventory.Application.Stock.Dtos;
 using ShopSphere.Services.Inventory.Application.Stock.Queries.GetStockBySku;
@@ -83,6 +84,7 @@ public static class InventoryApiEndpoints
         .Produces<StockResponse>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status404NotFound)
+        .RequirePermission(ShopSpherePermissions.Inventory.AdjustStock)
         .WithOpenApi();
 
         // GET /api/v1/inventory/{sku}

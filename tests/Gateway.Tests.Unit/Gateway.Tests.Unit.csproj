@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\src\Gateway\ShopSphere.Gateway\ShopSphere.Gateway.csproj" />
   </ItemGroup>
 

@@ -133,4 +133,68 @@ public class SecurityExtensionsTests
         var superAdminResult = await authService.AuthorizeAsync(superAdminUser, null, ShopSpherePermissions.CatalogCreate);
         superAdminResult.Succeeded.Should().BeTrue();
     }
+
+    [Fact]
+    public void ShopSpherePermissions_DefinesNestedScopedConstants()
+    {
+        ShopSpherePermissions.Catalog.CreateProduct.Should().Be("catalog:products:create");
+        ShopSpherePermissions.Catalog.UpdatePrice.Should().Be("catalog:prices:update");
+        ShopSpherePermissions.Catalog.ReadProduct.Should().Be("catalog:products:read");
+        ShopSpherePermissions.Catalog.UpdateProduct.Should().Be("catalog:products:update");
+
+        ShopSpherePermissions.Inventory.ReadStock.Should().Be("inventory:stock:read");
+        ShopSpherePermissions.Inventory.AdjustStock.Should().Be("inventory:stock:adjust");
+
+        ShopSpherePermissions.Cart.Manage.Should().Be("cart:manage");
+
+        ShopSpherePermissions.Payment.Read.Should().Be("payment:read");
+        ShopSpherePermissions.Payment.Create.Should().Be("payment:create");
+        ShopSpherePermissions.Payment.Refund.Should().Be("payment:refund");
+
+        ShopSpherePermissions.Users.Read.Should().Be("users:read");
+        ShopSpherePermissions.Users.Manage.Should().Be("users:manage");
+    }
+
+    [Fact]
+    public void ShopSpherePolicies_DefinesExpectedPolicies()
+    {
+        ShopSpherePolicies.CanCreateProduct.Should().Be("catalog:products:create");
+        ShopSpherePolicies.CanUpdatePrice.Should().Be("catalog:prices:update");
+        ShopSpherePolicies.CanAdjustStock.Should().Be("inventory:stock:adjust");
+        ShopSpherePolicies.CanReadPayment.Should().Be("payment:read");
+        ShopSpherePolicies.CanCreatePayment.Should().Be("payment:create");
+        ShopSpherePolicies.CanManageCart.Should().Be("cart:manage");
+    }
+
+    [Fact]
+    public void RequirePermission_AddsAuthorizeDataWithPolicyToEndpoint()
+    {
+        var conventionBuilder = new TestConventionBuilder();
+        conventionBuilder.RequirePermission(ShopSpherePermissions.Catalog.CreateProduct);
+
+        var endpointModel = new Microsoft.AspNetCore.Routing.RouteEndpointBuilder(
+            requestDelegate: _ => Task.CompletedTask,
+            routePattern: Microsoft.AspNetCore.Routing.Patterns.RoutePatternFactory.Parse("/test"),
+            order: 0);
+
+        foreach (var convention in conventionBuilder.Conventions)
+        {
+            convention(endpointModel);
+        }
+
+        var authorizeData = endpointModel.Metadata.OfType<IAuthorizeData>().ToList();
+        authorizeData.Should().ContainSingle();
+        authorizeData[0].Policy.Should().Be("catalog:products:create");
+    }
+
+    private sealed class TestConventionBuilder : Microsoft.AspNetCore.Builder.IEndpointConventionBuilder
+    {
+        public List<Action<Microsoft.AspNetCore.Builder.EndpointBuilder>> Conventions { get; } = new();
+
+        public void Add(Action<Microsoft.AspNetCore.Builder.EndpointBuilder> convention)
+        {
+            Conventions.Add(convention);
+        }
+    }
 }
+

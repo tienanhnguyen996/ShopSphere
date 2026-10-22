@@ -1,5 +1,6 @@
 using Microsoft.OpenApi.Models;
 using ShopSphere.BuildingBlocks.Observability;
+using ShopSphere.BuildingBlocks.Security;
 using ShopSphere.Services.Cart.Api;
 using ShopSphere.Services.Cart.Api.Health;
 using ShopSphere.Services.Cart.Application;
@@ -19,6 +20,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddShopSphereObservability(builder.Configuration, "CartService");
+builder.Services.AddShopSphereAuthentication(builder.Configuration);
+builder.Services.AddShopSphereAuthorization();
 builder.Services.AddCartApplication();
 builder.Services.AddCartInfrastructure(builder.Configuration);
 
@@ -38,6 +41,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapCartEndpoints();
 

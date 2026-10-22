@@ -13,9 +13,11 @@
     <PackageReference Include="xunit.runner.visualstudio" />
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Moq" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\src\Services\Catalog\Catalog.Domain\Catalog.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Catalog\Catalog.Application\Catalog.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Catalog\Catalog.Infrastructure\Catalog.Infrastructure.csproj" />

@@ -2,6 +2,7 @@ using Microsoft.OpenApi.Models;
 using ShopSphere.BuildingBlocks.Messaging.Configuration;
 using ShopSphere.BuildingBlocks.Observability;
 using ShopSphere.BuildingBlocks.Persistence.Extensions;
+using ShopSphere.BuildingBlocks.Security;
 using ShopSphere.Services.Inventory.Api;
 using ShopSphere.Services.Inventory.Api.Health;
 using ShopSphere.Services.Inventory.Application;
@@ -22,6 +23,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddShopSphereObservability(builder.Configuration, "InventoryService");
+builder.Services.AddShopSphereAuthentication(builder.Configuration);
+builder.Services.AddShopSphereAuthorization();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -49,6 +52,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapInventoryEndpoints();
 
