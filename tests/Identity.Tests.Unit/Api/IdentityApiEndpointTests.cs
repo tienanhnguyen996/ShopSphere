@@ -286,6 +286,29 @@ public class IdentityApiEndpointTests
         result.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task GetUserByIdQueryHandler_WhenUserExists_ShouldReturnUserProfileDto()
+    {
+        var user = User.Create(Guid.NewGuid(), "test@user.com", "hash", "Test User");
+        var users = new List<User> { user };
+
+        var dbContextMock = new Mock<IIdentityDbContext>();
+        dbContextMock.Setup(c => c.Users).Returns(MockDbSetExtensions.CreateMockDbSet(users).Object);
+
+        var resolverMock = new Mock<IUserRolePermissionResolver>();
+        resolverMock.Setup(r => r.ResolveAsync(user, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new[] { "Customer" }, new[] { "catalog:products:read" }));
+
+        var getCurrentUserHandler = new GetCurrentUserQueryHandler(dbContextMock.Object, resolverMock.Object);
+        var handler = new ShopSphere.Services.Identity.Application.Users.Queries.GetUserById.GetUserByIdQueryHandler(getCurrentUserHandler);
+
+        var result = await handler.HandleAsync(new ShopSphere.Services.Identity.Application.Users.Queries.GetUserById.GetUserByIdQuery(user.Id));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Id.Should().Be(user.Id);
+        result.Value.Email.Should().Be(user.Email);
+    }
+
     #endregion
 
     #region Request Model Contract Tests

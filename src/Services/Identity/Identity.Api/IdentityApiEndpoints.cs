@@ -16,6 +16,7 @@ using ShopSphere.Services.Identity.Application.Contracts;
 using ShopSphere.Services.Identity.Application.Roles.Queries.GetRoles;
 using ShopSphere.Services.Identity.Application.Users.Commands.AssignRole;
 using ShopSphere.Services.Identity.Application.Users.Commands.RemoveRole;
+using ShopSphere.Services.Identity.Application.Users.Queries.GetUserById;
 using ShopSphere.Services.Identity.Application.Users.Queries.GetUsers;
 
 namespace ShopSphere.Services.Identity.Api;
@@ -128,10 +129,14 @@ public static class IdentityApiEndpoints
             RevokeTokenCommandHandler handler,
             CancellationToken ct) =>
         {
-            var userId = request?.UserId ?? ExtractUserId(context.User);
+            var userId = ExtractUserId(context.User);
             if (userId == Guid.Empty && context.Request.Headers.TryGetValue(UserIdHeader, out var headerVal) && Guid.TryParse(headerVal, out var parsedHeaderId))
             {
                 userId = parsedHeaderId;
+            }
+            if (userId == Guid.Empty && request?.UserId is not null && request.UserId.Value != Guid.Empty)
+            {
+                userId = request.UserId.Value;
             }
 
             if (userId == Guid.Empty)
@@ -160,10 +165,6 @@ public static class IdentityApiEndpoints
             if (userId == Guid.Empty && context.Request.Headers.TryGetValue(UserIdHeader, out var headerVal) && Guid.TryParse(headerVal, out var parsedHeaderId))
             {
                 userId = parsedHeaderId;
-            }
-            if (userId == Guid.Empty && context.Request.Query.TryGetValue("userId", out var queryVal) && Guid.TryParse(queryVal, out var parsedQueryId))
-            {
-                userId = parsedQueryId;
             }
 
             if (userId == Guid.Empty)
@@ -206,10 +207,10 @@ public static class IdentityApiEndpoints
         // GET /api/v1/users/{id:guid}
         usersGroup.MapGet("/{id:guid}", async (
             Guid id,
-            GetCurrentUserQueryHandler handler,
+            GetUserByIdQueryHandler handler,
             CancellationToken ct) =>
         {
-            var query = new GetCurrentUserQuery(id);
+            var query = new GetUserByIdQuery(id);
             var result = await handler.HandleAsync(query, ct);
             return ToHttpResult(result, StatusCodes.Status200OK);
         })
