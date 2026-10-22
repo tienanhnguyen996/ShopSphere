@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.0.4",
   "info": {
     "title": "ShopSphere Identity Service API",
     "description": "Microservice managing authentication, JWT tokens, RBAC roles and permissions, and user accounts in ShopSphere.",

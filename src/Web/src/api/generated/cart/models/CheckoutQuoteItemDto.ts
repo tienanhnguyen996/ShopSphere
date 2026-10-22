@@ -3,12 +3,12 @@
 /* tslint:disable */
 /* eslint-disable */
 export type CheckoutQuoteItemDto = {
-  sku: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  lineTotal: number;
-  currency: string;
-  priceVersion: number;
-  isActive: boolean;
+  sku?: string | null;
+  productName?: string | null;
+  quantity?: number;
+  unitPrice?: number;
+  lineTotal?: number;
+  currency?: string | null;
+  priceVersion?: number;
+  isActive?: boolean;
 };

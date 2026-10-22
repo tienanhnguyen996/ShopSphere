@@ -4,11 +4,11 @@
 /* eslint-disable */
 import type { CheckoutQuoteItemDto } from './CheckoutQuoteItemDto';
 export type CheckoutQuoteDto = {
-  customerId: string;
-  items: Array<CheckoutQuoteItemDto>;
-  subtotal: number;
-  currency: string;
-  priceVersions: Record<string, number>;
-  isValid: boolean;
-  validationErrors: Array<string>;
+  customerId?: string | null;
+  items?: Array<CheckoutQuoteItemDto> | null;
+  subtotal?: number;
+  currency?: string | null;
+  priceVersions?: Record<string, number> | null;
+  isValid?: boolean;
+  validationErrors?: Array<string> | null;
 };

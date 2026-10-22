@@ -4,11 +4,11 @@
 /* eslint-disable */
 import type { ProductDto } from './ProductDto';
 export type PagedProductResult = {
-  items: Array<ProductDto>;
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
+  items?: Array<ProductDto> | null;
+  totalCount?: number;
+  page?: number;
+  pageSize?: number;
+  readonly totalPages?: number;
+  readonly hasNextPage?: boolean;
+  readonly hasPreviousPage?: boolean;
 };

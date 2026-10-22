@@ -4,9 +4,9 @@
 /* eslint-disable */
 import type { CartItemDto } from './CartItemDto';
 export type CartDto = {
-  customerId: string;
-  items: Array<CartItemDto>;
-  totalQuantity: number;
-  createdAtUtc: string;
-  lastModifiedUtc: string;
+  customerId?: string | null;
+  items?: Array<CartItemDto> | null;
+  totalQuantity?: number;
+  createdAtUtc?: string;
+  lastModifiedUtc?: string;
 };

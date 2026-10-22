@@ -3,5 +3,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export type UpdateCartItemQuantityRequest = {
-  quantity: number;
+  quantity?: number;
 };

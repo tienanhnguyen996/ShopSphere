@@ -4,8 +4,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
-using Microsoft.OpenApi.Extensions;
-using Microsoft.OpenApi.Models;
 using Moq;
 using ShopSphere.Services.Cart.Api;
 using ShopSphere.Services.Cart.Application;
@@ -57,7 +55,7 @@ public class OpenApiSpecGeneratorTests
         swaggerDoc.Paths.Should().ContainKey("/api/v1/cart/items/{sku}");
         swaggerDoc.Paths.Should().ContainKey("/api/v1/cart/quote");
 
-        var json = swaggerDoc.SerializeAsJson(OpenApiSpecVersion.OpenApi3_0);
+        var json = await swaggerDoc.SerializeAsJsonAsync(OpenApiSpecVersion.OpenApi3_0);
         json.Should().NotBeNullOrWhiteSpace();
 
         await app.StopAsync();
