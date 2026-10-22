@@ -135,11 +135,11 @@ public class ReserveInventoryConsumer :
                     new InventoryReserved(orderId, reservedDtoList, expiresAtUtc),
                     orderId.ToString());
 
-                await publishEndpoint.Publish(successEnvelope, ct);
-                await publishEndpoint.Publish(successEnvelope.Payload, ct);
-
                 await _dbContext.SaveChangesAsync(ct);
                 _logger.LogInformation("Successfully reserved inventory for Order {OrderId}", orderId);
+
+                await publishEndpoint.Publish(successEnvelope, ct);
+                await publishEndpoint.Publish(successEnvelope.Payload, ct);
                 return;
             }
             catch (DbUpdateConcurrencyException ex)
@@ -155,9 +155,10 @@ public class ReserveInventoryConsumer :
                         new InventoryRejected(orderId, "Concurrency conflict during stock reservation.", allSkus),
                         orderId.ToString());
 
+                    await _dbContext.SaveChangesAsync(ct);
+
                     await publishEndpoint.Publish(rejectedEnvelope, ct);
                     await publishEndpoint.Publish(rejectedEnvelope.Payload, ct);
-                    await _dbContext.SaveChangesAsync(ct);
                     return;
                 }
 
