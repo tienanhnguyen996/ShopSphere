@@ -5,8 +5,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
-using Microsoft.OpenApi.Extensions;
-using Microsoft.OpenApi.Models;
 using ShopSphere.Services.Catalog.Api;
 using ShopSphere.Services.Catalog.Application;
 using ShopSphere.Services.Catalog.Application.Common.Interfaces;
@@ -33,6 +31,7 @@ public class OpenApiSpecGeneratorTests
                 Version = "v1",
                 Description = "Microservice managing products, prices, SKU validation, and catalog inventory references in ShopSphere."
             });
+            c.CustomSchemaIds(type => type == typeof(ShopSphere.Services.Catalog.Application.Common.Models.PagedResult<ShopSphere.Services.Catalog.Application.Products.Dtos.ProductDto>) ? "PagedProductResult" : type.Name);
         });
 
         builder.Services.AddApplication();
@@ -58,7 +57,7 @@ public class OpenApiSpecGeneratorTests
         swaggerDoc.Paths.Should().ContainKey("/api/v1/catalog/products/{sku}");
         swaggerDoc.Paths.Should().ContainKey("/api/v1/catalog/products/{sku}/price");
 
-        var json = swaggerDoc.SerializeAsJson(OpenApiSpecVersion.OpenApi3_0);
+        var json = await swaggerDoc.SerializeAsJsonAsync(OpenApiSpecVersion.OpenApi3_0);
         json.Should().NotBeNullOrWhiteSpace();
 
         await app.StopAsync();

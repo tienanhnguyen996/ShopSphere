@@ -6,8 +6,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
-using Microsoft.OpenApi.Extensions;
-using Microsoft.OpenApi.Models;
 using Moq;
 using ShopSphere.Services.Payment.Api;
 using ShopSphere.Services.Payment.Api.Services;
@@ -62,7 +60,7 @@ public class OpenApiSpecGeneratorTests
         swaggerDoc.Paths.Should().ContainKey("/api/v1/payment/attempts/{id}");
         swaggerDoc.Paths.Should().ContainKey("/api/v1/payment/orders/{orderId}");
 
-        var json = swaggerDoc.SerializeAsJson(OpenApiSpecVersion.OpenApi3_0);
+        var json = await swaggerDoc.SerializeAsJsonAsync(OpenApiSpecVersion.OpenApi3_0);
         json.Should().NotBeNullOrWhiteSpace();
 
         await app.StopAsync();

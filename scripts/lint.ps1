@@ -19,7 +19,7 @@ if (Get-Command docker -ErrorAction SilentlyContinue) {
     if ($LASTEXITCODE -eq 0) { $dockerRunning = $true }
 }
 
-if ($dotnetVersion -and $dotnetVersion.StartsWith("8.0")) {
+if ($dotnetVersion -and $dotnetVersion.StartsWith("10.0")) {
     dotnet format --verify-no-changes
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[FAIL] .NET format check failed. Run './scripts/fix-lint.ps1' to fix." -ForegroundColor Red
@@ -28,8 +28,8 @@ if ($dotnetVersion -and $dotnetVersion.StartsWith("8.0")) {
         Write-Host "[PASS] .NET format check passed" -ForegroundColor Green
     }
 } elseif ($dockerRunning) {
-    Write-Host "Using Docker container for .NET 8 SDK..."
-    docker run --rm -v "${PWD}:/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:8.0 dotnet format --verify-no-changes
+    Write-Host "Using Docker container for .NET 10 SDK..."
+    docker run --rm -v "${PWD}:/workspace" -w /workspace mcr.microsoft.com/dotnet/sdk:10.0 dotnet format --verify-no-changes
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[FAIL] .NET format check failed. Run './scripts/fix-lint.ps1' to fix." -ForegroundColor Red
         $failed = $true
@@ -37,7 +37,7 @@ if ($dotnetVersion -and $dotnetVersion.StartsWith("8.0")) {
         Write-Host "[PASS] .NET format check passed" -ForegroundColor Green
     }
 } else {
-    Write-Host "[WARN] Skipping .NET format check (neither .NET 8 SDK nor Docker found)" -ForegroundColor Yellow
+    Write-Host "[WARN] Skipping .NET format check (neither .NET 10 SDK nor Docker found)" -ForegroundColor Yellow
 }
 
 # 2. Frontend Check

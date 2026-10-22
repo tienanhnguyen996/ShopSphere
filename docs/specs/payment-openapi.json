@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.0.4",
   "info": {
     "title": "ShopSphere Payment Service API",
     "description": "Microservice managing payment processing, mock provider interactions, timeout handling (PaymentUnknown), and webhooks.",

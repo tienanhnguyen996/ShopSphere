@@ -11,7 +11,6 @@ import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class ProductsService {
   /**
-   * Create a new catalog product
    * @returns ProductDto Created
    * @throws ApiError
    */
@@ -27,19 +26,18 @@ export class ProductsService {
       mediaType: 'application/json',
       errors: {
         400: `Bad Request`,
-        409: `Conflict - Product SKU already exists`,
+        409: `Conflict`,
       },
     });
   }
   /**
-   * Retrieve paginated products with filtering
    * @returns PagedProductResult OK
    * @throws ApiError
    */
   public static getCatalogProducts({
-    page = 1,
-    pageSize = 20,
-    onlyActive = true,
+    page,
+    pageSize,
+    onlyActive,
   }: {
     page?: number;
     pageSize?: number;
@@ -56,7 +54,6 @@ export class ProductsService {
     });
   }
   /**
-   * Retrieve product details by unique SKU
    * @returns ProductDto OK
    * @throws ApiError
    */
@@ -73,7 +70,6 @@ export class ProductsService {
     });
   }
   /**
-   * Update product price and increment price version
    * @returns ProductDto OK
    * @throws ApiError
    */

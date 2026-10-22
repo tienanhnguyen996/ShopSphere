@@ -1,4 +1,4 @@
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using ShopSphere.BuildingBlocks.Observability;
 using ShopSphere.BuildingBlocks.Security;
 using ShopSphere.Services.Cart.Api;

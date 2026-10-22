@@ -3,10 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export type CreateProductRequest = {
-  name: string;
-  description?: string;
-  sku: string;
-  priceAmount: number;
-  currency?: string;
+  name?: string | null;
+  description?: string | null;
+  sku?: string | null;
+  priceAmount?: number;
+  currency?: string | null;
   activateImmediately?: boolean;
 };
