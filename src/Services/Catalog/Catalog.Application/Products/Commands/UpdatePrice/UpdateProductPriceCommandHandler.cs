@@ -85,7 +85,16 @@ public sealed class UpdateProductPriceCommandHandler
             _dbContext.OutboxMessages.Add(outboxMessage);
         }
 
-        await _dbContext.SaveChangesAsync(ct);
+        try
+        {
+            await _dbContext.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure<ProductDto>(Error.Conflict(
+                "Product.Conflict",
+                "The product price was modified by another operation. Please refresh and try again."));
+        }
 
         // Invalidate Redis cache immediately after DB commit
         await _cacheService.RemoveAsync(CachedGetProductBySkuQueryHandler.GetCacheKey(product.Sku.Value), ct);
