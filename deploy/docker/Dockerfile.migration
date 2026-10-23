@@ -1,0 +1,41 @@
+# Multi-stage Dockerfile for EF Core Migration Bundles
+ARG DOTNET_VERSION=10.0
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-alpine AS build
+WORKDIR /src
+
+# Install dotnet-ef tool
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="$PATH:/root/.dotnet/tools"
+
+# Copy central package management and build props
+COPY Directory.Build.props Directory.Packages.props ./
+
+# Copy BuildingBlocks
+COPY src/BuildingBlocks/ src/BuildingBlocks/
+
+# Arguments for target service migrations
+ARG SERVICE_DIR=src/Services/Catalog
+ARG INFRA_PROJECT=src/Services/Catalog/Catalog.Infrastructure/Catalog.Infrastructure.csproj
+ARG STARTUP_PROJECT=src/Services/Catalog/Catalog.Api/Catalog.Api.csproj
+
+# Copy service source code
+COPY ${SERVICE_DIR}/ ${SERVICE_DIR}/
+
+# Restore and bundle
+RUN dotnet restore ${STARTUP_PROJECT}
+RUN dotnet ef migrations bundle \
+    --project ${INFRA_PROJECT} \
+    --startup-project ${STARTUP_PROJECT} \
+    --output /app/efbundle \
+    --self-contained \
+    -r linux-musl-x64
+
+# Runtime stage: slim Alpine Linux container (no SDK needed)
+FROM alpine:3.19 AS runtime
+WORKDIR /app
+
+RUN apk add --no-cache libstdc++ icu-libs
+COPY --from=build /app/efbundle .
+RUN chmod +x ./efbundle
+
+ENTRYPOINT ["./efbundle"]
