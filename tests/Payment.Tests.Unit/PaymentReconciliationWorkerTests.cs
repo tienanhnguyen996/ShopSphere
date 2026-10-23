@@ -163,4 +163,50 @@ public class PaymentReconciliationWorkerTests
         _mockPublishEndpoint.Verify(p => p.Publish(It.IsAny<PaymentRejected>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockDbContext.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task ReconcileUnknownPaymentsAsync_WhenConcurrencyConflictOnFirstAttempt_RetriesAndSucceeds()
+    {
+        // Arrange
+        var orderId = Guid.NewGuid();
+        var attempt = PaymentAttempt.Create(orderId, 150m, "USD", "credit_card");
+        attempt.MarkUnknown("Initial timeout");
+
+        var attempts = new List<PaymentAttempt> { attempt };
+        var mockSet = MockDbSetExtensions.CreateMockDbSet(attempts);
+        _mockDbContext.Setup(c => c.PaymentAttempts).Returns(mockSet.Object);
+
+        _mockProviderClient
+            .Setup(c => c.GetStatusAsync(It.Is<PaymentStatusQueryRequest>(q => q.PaymentAttemptId == attempt.Id), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PaymentStatusQueryResult(PaymentProviderStatus.Success, "tx_reconciled_retry", null));
+
+        // First SaveChangesAsync throws concurrency exception, second succeeds
+        var saveCallCount = 0;
+        _mockDbContext
+            .Setup(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                saveCallCount++;
+                if (saveCallCount == 1)
+                {
+                    throw new DbUpdateConcurrencyException("Simulated conflict on first save");
+                }
+                return Task.FromResult(1);
+            });
+
+        var worker = new PaymentReconciliationWorker(_mockScopeFactory.Object, _mockLogger.Object);
+
+        // Act
+        var count = await worker.ReconcileUnknownPaymentsAsync();
+
+        // Assert
+        count.Should().Be(1);
+        attempt.Status.Should().Be(PaymentStatus.Succeeded);
+        attempt.ProviderTransactionId.Should().Be("tx_reconciled_retry");
+        saveCallCount.Should().Be(2);
+
+        _mockPublishEndpoint.Verify(
+            p => p.Publish(It.Is<PaymentSucceeded>(e => e.OrderId == orderId && e.ProviderTransactionId == "tx_reconciled_retry"), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }
