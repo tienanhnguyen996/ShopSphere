@@ -84,6 +84,12 @@ public class CollectPaymentConsumer :
                 _logger.LogWarning("CollectPayment received for Order {OrderId} with status PaymentUnknown. Awaiting reconciliation, not retrying charge.", orderId);
                 return;
             }
+
+            if (existingAttempt.Status == PaymentStatus.Pending)
+            {
+                _logger.LogWarning("CollectPayment received for Order {OrderId} with an attempt already Pending. Awaiting completion, not retrying charge.", orderId);
+                return;
+            }
         }
 
         // 2. Create new PaymentAttempt in Pending state or use existing pending attempt
@@ -130,9 +136,12 @@ public class CollectPaymentConsumer :
                             attempt.Currency);
 
                         var successEnvelope = MessageEnvelope<PaymentSucceeded>.Create(successEvent, orderId.ToString());
+
+                        await _dbContext.SaveChangesAsync(ct);
+
                         await publishEndpoint.Publish(successEnvelope, ct);
                         await publishEndpoint.Publish(successEnvelope.Payload, ct);
-                        break;
+                        return;
 
                     case PaymentProviderStatus.Failed:
                         var failureReason = chargeResult.ErrorMessage ?? "Payment rejected by provider.";
@@ -146,9 +155,12 @@ public class CollectPaymentConsumer :
                             failureReason);
 
                         var rejectedEnvelope = MessageEnvelope<PaymentRejected>.Create(rejectedEvent, orderId.ToString());
+
+                        await _dbContext.SaveChangesAsync(ct);
+
                         await publishEndpoint.Publish(rejectedEnvelope, ct);
                         await publishEndpoint.Publish(rejectedEnvelope.Payload, ct);
-                        break;
+                        return;
 
                     case PaymentProviderStatus.Unknown:
                     default:
@@ -164,13 +176,13 @@ public class CollectPaymentConsumer :
                             unknownReason);
 
                         var resolutionEnvelope = MessageEnvelope<PaymentPendingResolution>.Create(resolutionEvent, orderId.ToString());
+
+                        await _dbContext.SaveChangesAsync(ct);
+
                         await publishEndpoint.Publish(resolutionEnvelope, ct);
                         await publishEndpoint.Publish(resolutionEnvelope.Payload, ct);
-                        break;
+                        return;
                 }
-
-                await _dbContext.SaveChangesAsync(ct);
-                return;
             }
             catch (DbUpdateConcurrencyException ex)
             {
