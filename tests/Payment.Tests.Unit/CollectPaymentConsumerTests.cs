@@ -209,4 +209,27 @@ public class CollectPaymentConsumerTests
         _mockPublishEndpoint.Verify(p => p.Publish(It.IsAny<PaymentSucceeded>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockPublishEndpoint.Verify(p => p.Publish(It.IsAny<PaymentRejected>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task HandlePaymentAsync_WhenAttemptAlreadyPending_DoesNotChargeAgain()
+    {
+        // Arrange
+        var orderId = Guid.NewGuid();
+        var existing = PaymentAttempt.Create(orderId, 120m, "USD", "credit_card");
+
+        var attempts = new List<PaymentAttempt> { existing };
+        var mockSet = MockDbSetExtensions.CreateMockDbSet(attempts);
+        _mockDbContext.Setup(c => c.PaymentAttempts).Returns(mockSet.Object);
+
+        var consumer = new CollectPaymentConsumer(_mockDbContext.Object, _mockProviderClient.Object, _mockLogger.Object);
+        var command = new CollectPayment(orderId, 120m, "USD", "credit_card");
+
+        // Act
+        await consumer.HandlePaymentAsync(command, _mockPublishEndpoint.Object);
+
+        // Assert
+        _mockProviderClient.Verify(c => c.ChargeAsync(It.IsAny<PaymentChargeRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockPublishEndpoint.Verify(p => p.Publish(It.IsAny<PaymentSucceeded>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockPublishEndpoint.Verify(p => p.Publish(It.IsAny<PaymentRejected>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

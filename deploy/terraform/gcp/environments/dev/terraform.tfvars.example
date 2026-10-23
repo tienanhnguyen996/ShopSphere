@@ -1,0 +1,6 @@
+project_id         = "your-gcp-project-id"
+region             = "us-central1"
+zone               = "us-central1-a"
+environment        = "dev"
+github_repo        = "tienanhnguyen996/ShopSphere"
+notification_email = "devops@example.com"
