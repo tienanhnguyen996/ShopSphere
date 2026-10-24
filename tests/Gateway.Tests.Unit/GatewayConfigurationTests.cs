@@ -63,6 +63,16 @@ public class GatewayConfigurationTests
         // Shipping route
         routes["shipping-route:Match:Path"].Should().Be("/api/v1/shipping/{**catch-all}");
         routes["shipping-route:ClusterId"].Should().Be("shipping-cluster");
+
+        // Identity routes
+        routes["identity-auth-route:Match:Path"].Should().Be("/api/v1/auth/{**catch-all}");
+        routes["identity-auth-route:ClusterId"].Should().Be("identity-cluster");
+
+        routes["identity-users-route:Match:Path"].Should().Be("/api/v1/users/{**catch-all}");
+        routes["identity-users-route:ClusterId"].Should().Be("identity-cluster");
+
+        routes["identity-roles-route:Match:Path"].Should().Be("/api/v1/roles/{**catch-all}");
+        routes["identity-roles-route:ClusterId"].Should().Be("identity-cluster");
     }
 
     [Fact]
@@ -80,7 +90,8 @@ public class GatewayConfigurationTests
             ["inventory-cluster"] = ("http://localhost:5003", "/health", "00:00:15"),
             ["payment-cluster"] = ("http://localhost:5004", "/health", "00:00:15"),
             ["order-cluster"] = ("http://localhost:5005", "/health", "00:00:15"),
-            ["shipping-cluster"] = ("http://localhost:5006", "/health", "00:00:15")
+            ["shipping-cluster"] = ("http://localhost:5006", "/health", "00:00:15"),
+            ["identity-cluster"] = ("http://localhost:5007", "/health", "00:00:15")
         };
 
         foreach (var (clusterId, (expectedDestination, expectedHealthPath, expectedInterval)) in expectedClusters)
