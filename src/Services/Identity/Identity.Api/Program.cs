@@ -37,6 +37,21 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Identity Service API v1");
     });
+
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ShopSphere.Services.Identity.Application.Common.Interfaces.IIdentityDbContext>();
+        var hasher = scope.ServiceProvider.GetService<ShopSphere.Services.Identity.Application.Common.Interfaces.IPasswordHashService>();
+        if (dbContext is IdentityDbContext efContext && await efContext.Database.CanConnectAsync())
+        {
+            await IdentityDbSeeder.SeedAsync(dbContext, hasher, app.Configuration);
+        }
+    }
+    catch
+    {
+        // Ignore seeding errors in isolated unit test environments without SQL Server
+    }
 }
 
 app.UseHttpsRedirection();
