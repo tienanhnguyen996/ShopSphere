@@ -5,6 +5,9 @@ namespace ShopSphere.Services.Shipping.Infrastructure.Carriers;
 
 public sealed class MockCarrierProviderClient : ICarrierProviderClient
 {
+    public MockCarrierProviderClient(HttpClient? httpClient = null)
+    {
+    }
     public Task<CarrierLabelResult> RequestLabelAsync(
         Guid orderId,
         string carrierRequestId,

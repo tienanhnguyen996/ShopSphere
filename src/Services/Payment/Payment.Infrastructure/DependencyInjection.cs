@@ -5,6 +5,7 @@ using ShopSphere.BuildingBlocks.Persistence.Interceptors;
 using ShopSphere.BuildingBlocks.Resilience;
 using ShopSphere.Services.Payment.Application.Common.Interfaces;
 using ShopSphere.Services.Payment.Infrastructure.Clients;
+using ShopSphere.Services.Payment.Infrastructure.Configuration;
 
 namespace ShopSphere.Services.Payment.Infrastructure;
 
@@ -28,7 +29,14 @@ public static class DependencyInjection
 
         services.AddScoped<IPaymentDbContext>(sp => sp.GetRequiredService<PaymentDbContext>());
 
-        services.AddResilientHttpClient<IPaymentProviderClient, MockPaymentProviderClient>();
+        services.Configure<PaymentSettings>(configuration.GetSection(PaymentSettings.SectionName));
+
+        services.AddResilientHttpClient<MockPaymentProviderClient, MockPaymentProviderClient>();
+        services.AddResilientHttpClient<StripePaymentProviderClient, StripePaymentProviderClient>();
+        services.AddResilientHttpClient<MoMoPaymentProviderClient, MoMoPaymentProviderClient>();
+        services.AddResilientHttpClient<VnPayPaymentProviderClient, VnPayPaymentProviderClient>();
+
+        services.AddScoped<IPaymentProviderClient, RoutingPaymentProviderClient>();
 
         return services;
     }

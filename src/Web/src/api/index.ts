@@ -3,6 +3,8 @@ export {
   configureApiClients,
   getCorrelationId,
   setCorrelationId,
+  getCustomerId,
+  setCustomerId,
   getAuthToken,
   setAuthToken,
   catalogOpenAPI,
