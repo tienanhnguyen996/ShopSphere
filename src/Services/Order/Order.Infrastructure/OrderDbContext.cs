@@ -18,6 +18,8 @@ public class OrderDbContext : DbContext, IOrderDbContext
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
+    public void ClearChangeTracker() => ChangeTracker.Clear();
+
     public OrderDbContext(DbContextOptions<OrderDbContext> options) : base(options) { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

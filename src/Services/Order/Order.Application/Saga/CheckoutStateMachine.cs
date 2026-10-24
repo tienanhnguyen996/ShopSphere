@@ -178,7 +178,9 @@ public class CheckoutStateMachine : MassTransitStateMachine<CheckoutSagaState>
                         context.Saga.CustomerId,
                         context.Saga.FailureReason!);
                     await PublishWithEnvelopeAsync(context, cancelEvt);
-                }));
+                }),
+
+            Ignore(InventoryReservedEvent));
 
         // 4. PaymentUnknown -> Committing (or Refunding if hold expired!) / Cancelled
         During(PaymentUnknown,
@@ -289,7 +291,11 @@ public class CheckoutStateMachine : MassTransitStateMachine<CheckoutSagaState>
                         context.Message.Reason);
 
                     await PublishWithEnvelopeAsync(context, refundCmd);
-                }));
+                }),
+
+            Ignore(PaymentSucceededEvent),
+            Ignore(InventoryCommittedEvent),
+            Ignore(InventoryReservedEvent));
 
         // 6. Shipping -> Confirmed / Refunding
         During(Shipping,
@@ -332,7 +338,11 @@ public class CheckoutStateMachine : MassTransitStateMachine<CheckoutSagaState>
                         context.Message.Reason);
 
                     await PublishWithEnvelopeAsync(context, refundCmd);
-                }));
+                }),
+
+            Ignore(PaymentSucceededEvent),
+            Ignore(InventoryCommittedEvent),
+            Ignore(InventoryReservedEvent));
 
         // 7. Refunding -> Cancelled
         During(Refunding,

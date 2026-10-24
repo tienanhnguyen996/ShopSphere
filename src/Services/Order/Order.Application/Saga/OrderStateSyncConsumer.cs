@@ -147,6 +147,7 @@ public class OrderStateSyncConsumer :
                     throw;
                 }
 
+                _dbContext.ClearChangeTracker();
                 await Task.Delay(50 * attempt, ct);
             }
         }
