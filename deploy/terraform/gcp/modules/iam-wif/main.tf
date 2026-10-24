@@ -18,7 +18,9 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
     "attribute.repository" = "assertion.repository"
   }
 
-  issuer_uri = "https://token.actions.githubusercontent.com"
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
 }
 
 # Service Account for GitHub Actions CI/CD

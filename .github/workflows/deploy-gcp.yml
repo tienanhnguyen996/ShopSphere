@@ -1,0 +1,121 @@
+name: Deploy ShopSphere to GCP Dev
+
+on:
+  push:
+    branches:
+      - main
+      - feat/gcp-dev-deployment
+    paths:
+      - 'src/**'
+      - 'deploy/**'
+      - '.github/workflows/deploy-gcp.yml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+  WIF_SERVICE_ACCOUNT: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
+  GAR_REPO: shopsphere-containers-dev
+  TF_STATE_BUCKET: ${{ secrets.GCP_TF_STATE_BUCKET }}
+
+jobs:
+  validate:
+    name: Lint & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
+
+      - name: Check formatting and lint
+        run: |
+          bash scripts/lint.sh
+
+      - name: Run Unit Tests
+        run: |
+          dotnet test --filter "Category!=Integration" --configuration Release
+
+  terraform-plan:
+    name: Terraform Plan & Validate
+    needs: validate
+    runs-on: ubuntu-latest
+    if: env.PROJECT_ID != ''
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via Workload Identity
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.5
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive deploy/terraform/gcp/
+
+      - name: Terraform Init & Plan
+        working-directory: deploy/terraform/gcp/environments/dev
+        run: |
+          terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}"
+          terraform validate
+          terraform plan -var="project_id=${{ env.PROJECT_ID }}" -out=tfplan
+
+  build-and-deploy:
+    name: Build Containers & Deploy to Cloud Run
+    needs: terraform-plan
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && env.PROJECT_ID != ''
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via Workload Identity
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & Push Gateway Container
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/gateway:${{ github.sha }}"
+          LATEST="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/gateway:latest"
+          docker build -t "$IMAGE" -t "$LATEST" -f deploy/docker/Dockerfile.gateway .
+          docker push "$IMAGE"
+          docker push "$LATEST"
+
+      - name: Build & Deploy Frontend Web SPA
+        run: |
+          cd src/Web
+          pnpm install --frozen-lockfile
+          pnpm build
+          gcloud storage rsync dist/ "gs://shopsphere-spa-dev-${{ env.PROJECT_ID }}" --recursive --delete-unmatched-destination-objects
