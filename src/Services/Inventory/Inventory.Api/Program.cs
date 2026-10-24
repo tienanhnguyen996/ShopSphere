@@ -33,6 +33,7 @@ builder.Services.AddShopSphereMessaging(builder.Configuration, busConfig =>
     busConfig.AddConsumer<ReserveInventoryConsumer>();
     busConfig.AddConsumer<ReleaseInventoryConsumer>();
     busConfig.AddConsumer<CommitInventoryConsumer>();
+    busConfig.AddConsumer<ShipmentHandedOverConsumer>();
     busConfig.AddShopSphereOutbox<InventoryDbContext>();
 });
 
