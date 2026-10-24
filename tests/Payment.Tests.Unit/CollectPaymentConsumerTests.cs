@@ -232,4 +232,34 @@ public class CollectPaymentConsumerTests
         _mockPublishEndpoint.Verify(p => p.Publish(It.IsAny<PaymentSucceeded>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockPublishEndpoint.Verify(p => p.Publish(It.IsAny<PaymentRejected>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task RefundPaymentConsumer_WhenPaymentSucceeded_MarksRefundedAndPublishesPaymentRefunded()
+    {
+        // Arrange
+        var orderId = Guid.NewGuid();
+        var existing = PaymentAttempt.Create(orderId, 120m, "USD", "credit_card");
+        existing.MarkSucceeded("tx_succeeded_555");
+
+        var attempts = new List<PaymentAttempt> { existing };
+        var mockSet = MockDbSetExtensions.CreateMockDbSet(attempts);
+        _mockDbContext.Setup(c => c.PaymentAttempts).Returns(mockSet.Object);
+
+        _mockProviderClient
+            .Setup(c => c.RefundAsync(It.IsAny<PaymentRefundRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PaymentRefundResult(PaymentProviderStatus.Success, "rf_555", null));
+
+        var refundLogger = new Mock<ILogger<RefundPaymentConsumer>>();
+        var consumer = new RefundPaymentConsumer(_mockDbContext.Object, _mockProviderClient.Object, refundLogger.Object);
+        var command = new RefundPayment(orderId, existing.Id, 120m, "USD", "Late payment on cancelled order");
+
+        // Act
+        await consumer.HandleRefundAsync(command, _mockPublishEndpoint.Object);
+
+        // Assert
+        existing.Status.Should().Be(PaymentStatus.Refunded);
+        _mockPublishEndpoint.Verify(
+            p => p.Publish(It.Is<PaymentRefunded>(e => e.OrderId == orderId && e.RefundTransactionId == "rf_555"), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }
