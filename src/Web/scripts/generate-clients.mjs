@@ -30,6 +30,21 @@ const services = [
     input: path.resolve(projectRoot, 'docs/specs/payment-openapi.json'),
     output: path.resolve(webRoot, 'src/api/generated/payment'),
   },
+  {
+    name: 'order',
+    input: path.resolve(projectRoot, 'docs/specs/order-openapi.json'),
+    output: path.resolve(webRoot, 'src/api/generated/order'),
+  },
+  {
+    name: 'shipping',
+    input: path.resolve(projectRoot, 'docs/specs/shipping-openapi.json'),
+    output: path.resolve(webRoot, 'src/api/generated/shipping'),
+  },
+  {
+    name: 'notification',
+    input: path.resolve(projectRoot, 'docs/specs/notification-openapi.json'),
+    output: path.resolve(webRoot, 'src/api/generated/notification'),
+  },
 ];
 
 async function main() {

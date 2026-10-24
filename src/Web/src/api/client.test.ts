@@ -9,6 +9,9 @@ import {
   cartOpenAPI,
   inventoryOpenAPI,
   paymentOpenAPI,
+  orderOpenAPI,
+  shippingOpenAPI,
+  notificationOpenAPI,
   apiConfigs,
 } from './client.ts';
 import type { ApiRequestOptions } from './generated/catalog/core/ApiRequestOptions.ts';
@@ -102,13 +105,16 @@ test('API Client - auth token setting, retrieval, and TOKEN resolver', async () 
 });
 
 test('API Client - all OpenAPI.BASE configs are initialized to empty string (specs include /api prefix)', () => {
-  assert.strictEqual(apiConfigs.length, 4, 'Should configure 4 service clients');
+  assert.strictEqual(apiConfigs.length, 7, 'Should configure 7 service clients');
 
   const namedConfigs = [
     { name: 'catalog', config: catalogOpenAPI },
     { name: 'cart', config: cartOpenAPI },
     { name: 'inventory', config: inventoryOpenAPI },
     { name: 'payment', config: paymentOpenAPI },
+    { name: 'order', config: orderOpenAPI },
+    { name: 'shipping', config: shippingOpenAPI },
+    { name: 'notification', config: notificationOpenAPI },
   ];
 
   for (const { name, config } of namedConfigs) {
@@ -126,6 +132,13 @@ test('API Client - all OpenAPI.BASE configs are initialized to empty string (spe
   }
 });
 
+import {
+  normalizeOrderState,
+  normalizeShipmentState,
+  type OrderState,
+  type ShipmentState,
+} from '../shared/types/index.ts';
+
 test('API Client - exports client aliases matching specification in index.ts', async () => {
   const fs = await import('node:fs');
   const indexPath = new URL('./index.ts', import.meta.url);
@@ -135,4 +148,71 @@ test('API Client - exports client aliases matching specification in index.ts', a
   assert.match(indexContent, /CartService as cartApi/);
   assert.match(indexContent, /InventoryService as inventoryApi/);
   assert.match(indexContent, /PaymentService as paymentApi/);
+  assert.match(indexContent, /OrdersService as orderApi/);
+  assert.match(indexContent, /ShipmentsService as shippingApi/);
+  assert.match(indexContent, /NotificationsService as notificationApi/);
+});
+
+test('Shared Domain Types - normalizeOrderState supports all 7 Saga states including PaymentUnknown', () => {
+  const allOrderStates: OrderState[] = [
+    'Pending',
+    'Reserving',
+    'Paying',
+    'PaymentUnknown',
+    'Confirmed',
+    'Refunding',
+    'Cancelled',
+  ];
+
+  for (const state of allOrderStates) {
+    assert.strictEqual(normalizeOrderState(state), state);
+  }
+
+  assert.strictEqual(normalizeOrderState('UnknownBogusState'), 'Pending');
+  assert.strictEqual(normalizeOrderState(undefined), 'Pending');
+});
+
+test('Shared Domain Types - normalizeShipmentState supports all 8 Shipping states including ShipmentUnknown and HandedOver', () => {
+  const allShipmentStates: ShipmentState[] = [
+    'Pending',
+    'LabelCreated',
+    'ShipmentUnknown',
+    'HandedOver',
+    'InTransit',
+    'Delivered',
+    'Cancelled',
+    'Failed',
+  ];
+
+  for (const state of allShipmentStates) {
+    assert.strictEqual(normalizeShipmentState(state), state);
+  }
+
+  assert.strictEqual(normalizeShipmentState('InvalidState'), 'Pending');
+  assert.strictEqual(normalizeShipmentState(undefined), 'Pending');
+});
+
+test('Feature Boundaries - features do not import across feature directories', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+
+  const featuresDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../features');
+  const featureNames = ['catalog', 'cart', 'checkout', 'orders'];
+
+  for (const feature of featureNames) {
+    const dir = path.join(featuresDir, feature);
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.ts') || f.endsWith('.tsx'));
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(dir, file), 'utf-8');
+      for (const otherFeature of featureNames) {
+        if (otherFeature === feature) continue;
+        assert.doesNotMatch(
+          content,
+          new RegExp(`features/${otherFeature}|\\.\\./${otherFeature}`),
+          `Feature "${feature}/${file}" must not import from feature "${otherFeature}"`
+        );
+      }
+    }
+  }
 });
