@@ -60,7 +60,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapIdentityEndpoints();
-app.MapHealthChecks("/health");
 
 app.Run();
 

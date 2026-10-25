@@ -76,7 +76,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapCatalogEndpoints();
-app.MapHealthChecks("/health");
 
 app.Run();
 

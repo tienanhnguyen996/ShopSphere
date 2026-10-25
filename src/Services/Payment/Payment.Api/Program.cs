@@ -71,7 +71,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapPaymentEndpoints();
-app.MapHealthChecks("/health");
 
 app.Run();
 
