@@ -49,11 +49,6 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
     return Object.keys(errors).length === 0;
   };
 
-  const handleRegenerateIdempotencyKey = () => {
-    setIdempotencyKey(generateIdempotencyKey());
-    setDeclineReason(null);
-  };
-
   const handleSubmitCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateAddress()) {
@@ -86,8 +81,9 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
       const message =
         err instanceof Error
           ? err.message
-          : 'Gateway timeout or payment authorization rejected. Your idempotency key is preserved so retrying will not double-charge.';
+          : 'Payment could not be processed. Please check your details and try again.';
       setDeclineReason(message);
+      setIdempotencyKey(generateIdempotencyKey());
     } finally {
       setIsSubmitting(false);
     }
@@ -97,49 +93,15 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
   const hasValidationWarnings = (quote?.validationErrors?.length ?? 0) > 0;
 
   return (
-    <Modal
-      isOpen={isOpen}
-      title="Checkout & Idempotent Order Submission"
-      onClose={onClose}
-      maxWidthClassName="max-w-2xl"
-    >
+    <Modal isOpen={isOpen} title="Secure Checkout" onClose={onClose} maxWidthClassName="max-w-2xl">
       <form
         onSubmit={handleSubmitCheckout}
         style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}
       >
-        <div
-          style={{
-            padding: '12px 14px',
-            borderRadius: '10px',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '8px',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-              Active Idempotency-Key Guard
-            </div>
-            <code style={{ fontSize: '12px', color: '#2563eb' }}>{idempotencyKey}</code>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={isSubmitting}
-            onClick={handleRegenerateIdempotencyKey}
-          >
-            New Session Key
-          </Button>
-        </div>
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-              1. Shipping Destination
+              1. Shipping Address
             </h3>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
@@ -155,7 +117,7 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
                 }}
                 style={{
                   fontSize: '11px',
-                  padding: '3px 8px',
+                  padding: '4px 10px',
                   borderRadius: '6px',
                   border: '1px solid #cbd5e1',
                   backgroundColor: country === 'US' ? '#e0f2fe' : '#ffffff',
@@ -164,7 +126,7 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
                   fontWeight: 600,
                 }}
               >
-                Preset: US (Shippo)
+                Autofill US Address
               </button>
               <button
                 type="button"
@@ -179,7 +141,7 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
                 }}
                 style={{
                   fontSize: '11px',
-                  padding: '3px 8px',
+                  padding: '4px 10px',
                   borderRadius: '6px',
                   border: '1px solid #cbd5e1',
                   backgroundColor: country === 'VN' ? '#fef3c7' : '#ffffff',
@@ -188,7 +150,7 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
                   fontWeight: 600,
                 }}
               >
-                Preset: VN (GHN)
+                Autofill VN Address
               </button>
             </div>
           </div>
@@ -271,10 +233,10 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
             }}
           >
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
-              Order Review Snapshot
+              Order Summary
             </h3>
             <Badge variant={hasValidationWarnings ? 'warning' : 'success'}>
-              {hasValidationWarnings ? 'Price Adjusted to Live Catalog' : 'Prices Verified'}
+              {hasValidationWarnings ? 'Price Updated' : 'Guaranteed Price'}
             </Badge>
           </div>
           {quoteItems.length > 0 ? (
@@ -309,7 +271,7 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
                   color: '#0f172a',
                 }}
               >
-                <span>Verified Total</span>
+                <span>Total Due</span>
                 <span>
                   {quote?.currency ?? 'USD'} {(quote?.subtotal ?? 0).toFixed(2)}
                 </span>
@@ -317,17 +279,17 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
             </div>
           ) : (
             <div style={{ fontSize: '13px', color: '#64748b' }}>
-              Submitting current server-side cart snapshot for checkout saga execution.
+              Your cart items are reserved for secure checkout.
             </div>
           )}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
           <Button type="button" variant="secondary" onClick={onClose} disabled={isSubmitting}>
-            Back to Storefront
+            Cancel
           </Button>
           <Button type="submit" variant="primary" isLoading={isSubmitting}>
-            Place Order (Idempotent Saga)
+            Place Order
           </Button>
         </div>
       </form>

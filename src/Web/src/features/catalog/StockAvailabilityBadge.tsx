@@ -31,13 +31,13 @@ export const StockAvailabilityBadge: React.FC<StockAvailabilityBadgeProps> = ({
 
   switch (status) {
     case 'loading':
-      return <Badge variant="default">Checking Stock...</Badge>;
+      return <Badge variant="default">Checking...</Badge>;
     case 'out_of_stock':
-      return <Badge variant="danger">Out of Stock (0 left)</Badge>;
+      return <Badge variant="danger">Out of Stock</Badge>;
     case 'low_stock':
-      return <Badge variant="warning">Low Stock ({availableQuantity ?? 0} left)</Badge>;
+      return <Badge variant="warning">Only {availableQuantity ?? 0} left</Badge>;
     case 'in_stock':
-      return <Badge variant="success">In Stock ({availableQuantity ?? 0} available)</Badge>;
+      return <Badge variant="success">In Stock</Badge>;
     default: {
       const _exhaustive: never = status;
       return _exhaustive;

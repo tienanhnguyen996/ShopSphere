@@ -18,20 +18,20 @@ function getPaymentMethodDetails(method: PaymentMethodType): {
   switch (method) {
     case 'credit_card':
       return {
-        title: 'Credit or Debit Card (Stripe)',
-        subtitle: 'Worldwide card processing via Stripe sandbox gateway.',
+        title: 'Credit or Debit Card',
+        subtitle: 'Visa, Mastercard, American Express via Stripe.',
         badgeText: 'Stripe',
       };
     case 'digital_wallet':
       return {
-        title: 'MoMo E-Wallet (Vietnam)',
-        subtitle: 'Direct MoMo Sandbox gateway & QR checkout.',
+        title: 'MoMo E-Wallet',
+        subtitle: 'Instant mobile checkout & QR scan.',
         badgeText: 'MoMo',
       };
     case 'bank_transfer':
       return {
-        title: 'VNPay Banking / QR (Vietnam)',
-        subtitle: 'Direct settlement via VNPay Sandbox gateway.',
+        title: 'VNPay Banking / QR',
+        subtitle: 'Online banking & VNPAY-QR payment.',
         badgeText: 'VNPay',
       };
     default: {
@@ -56,7 +56,7 @@ export const PaymentSelectionForm: React.FC<PaymentSelectionFormProps> = ({
         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
           Payment Method
         </h3>
-        <Badge variant="info">Idempotent Charge Guard</Badge>
+        <Badge variant="success">🔒 256-Bit Encrypted</Badge>
       </div>
 
       {declineAlertReason && (
@@ -75,13 +75,12 @@ export const PaymentSelectionForm: React.FC<PaymentSelectionFormProps> = ({
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <strong style={{ fontSize: '14px' }}>Payment Authorization Declined</strong>
-            <Badge variant="danger">Card Declined</Badge>
+            <Badge variant="danger">Declined</Badge>
           </div>
           <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.45 }}>{declineAlertReason}</p>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '12px', color: '#b91c1c' }}>
-              Select an alternative payment method or retry safely with your existing idempotency
-              key.
+              Please verify your payment details or choose an alternative payment option.
             </span>
             {onDismissDeclineAlert && (
               <Button variant="secondary" onClick={onDismissDeclineAlert}>
