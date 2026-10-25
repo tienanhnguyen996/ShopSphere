@@ -9,8 +9,8 @@ public sealed class SqlServerHealthCheck(IConfiguration configuration) : IHealth
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        var connectionString = configuration.GetConnectionString("NotificationDb")
-            ?? configuration.GetConnectionString("Database");
+        var connectionString = configuration.GetConnectionString("Database")
+            ?? configuration.GetConnectionString("NotificationDb");
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {

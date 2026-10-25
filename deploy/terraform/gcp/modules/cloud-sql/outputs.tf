@@ -24,7 +24,7 @@ output "service_users" {
 
 output "connection_strings" {
   value = {
-    for k, v in var.services : k => "Server=${google_sql_database_instance.instance.private_ip_address},1433;Database=${v};User Id=sqlserver;Password=${random_password.root_password.result};TrustServerCertificate=True;Connect Timeout=15;Max Pool Size=50;"
+    for k, v in var.services : k => "Server=${google_sql_database_instance.instance.private_ip_address},1433;Database=${v};User Id=sqlserver;Password=${random_password.root_password.result};TrustServerCertificate=True;Connect Timeout=30;Max Pool Size=50;"
   }
   sensitive   = true
   description = "Per-service SQL Server connection strings with private IP and dedicated credentials."

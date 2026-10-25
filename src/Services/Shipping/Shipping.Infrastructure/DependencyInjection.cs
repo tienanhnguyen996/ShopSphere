@@ -17,8 +17,8 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("ShippingDb")
-            ?? configuration.GetConnectionString("Database")
+        var connectionString = configuration.GetConnectionString("Database")
+            ?? configuration.GetConnectionString("ShippingDb")
             ?? "Server=localhost,1433;Database=ShopSphere_Shipping;User Id=sa;Password=DevPassword123!;TrustServerCertificate=True;Encrypt=False";
 
         services.AddDbContext<ShippingDbContext>(options =>

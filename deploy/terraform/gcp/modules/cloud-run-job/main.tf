@@ -21,7 +21,7 @@ resource "google_cloud_run_v2_job" "migration_job" {
           network    = var.vpc_id
           subnetwork = var.app_subnet_id
         }
-        egress = "ALL_TRAFFIC"
+        egress = "PRIVATE_RANGES_ONLY"
       }
 
       containers {

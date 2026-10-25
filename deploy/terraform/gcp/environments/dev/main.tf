@@ -147,6 +147,16 @@ locals {
       worker = true
     }
   }
+
+  service_db_keys = {
+    catalog      = "CatalogDatabase"
+    identity     = "IdentityDatabase"
+    inventory    = "InventoryDatabase"
+    order        = "OrderDatabase"
+    payment      = "PaymentDatabase"
+    shipping     = "ShippingDb"
+    notification = "NotificationDb"
+  }
 }
 
 module "services" {
@@ -173,7 +183,8 @@ module "services" {
 
   secret_env_vars = merge(
     each.key != "cart" ? {
-      ConnectionStrings__Database = module.secrets.db_secret_ids[each.key]
+      ConnectionStrings__Database                                                 = module.secrets.db_secret_ids[each.key]
+      "ConnectionStrings__${lookup(local.service_db_keys, each.key, "Database")}" = module.secrets.db_secret_ids[each.key]
     } : {},
     {
       RabbitMQ__ConnectionString = module.secrets.rabbitmq_secret_ids[each.key]

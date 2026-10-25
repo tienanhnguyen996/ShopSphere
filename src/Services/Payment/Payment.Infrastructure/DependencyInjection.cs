@@ -17,8 +17,8 @@ public static class DependencyInjection
     {
         services.AddSingleton<AuditSaveChangesInterceptor>();
 
-        var connectionString = configuration.GetConnectionString("PaymentDatabase")
-            ?? configuration.GetConnectionString("Database")
+        var connectionString = configuration.GetConnectionString("Database")
+            ?? configuration.GetConnectionString("PaymentDatabase")
             ?? "Server=localhost,1433;Database=ShopSpherePayment;User Id=sa;Password=DevPassword123!;TrustServerCertificate=True;";
 
         services.AddDbContext<PaymentDbContext>((sp, options) =>

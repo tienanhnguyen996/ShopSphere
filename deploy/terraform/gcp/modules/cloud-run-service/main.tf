@@ -26,7 +26,7 @@ resource "google_cloud_run_v2_service" "service" {
         network    = var.vpc_id
         subnetwork = var.app_subnet_id
       }
-      egress = "ALL_TRAFFIC"
+      egress = "PRIVATE_RANGES_ONLY"
     }
 
     containers {
@@ -87,6 +87,11 @@ resource "google_cloud_run_v2_service" "service" {
         }
       }
     }
+  }
+
+  traffic {
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
   }
 }
 
