@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -8,8 +8,9 @@ import {
   Copy,
   Check,
   ArrowRight,
+  RefreshCw,
 } from 'lucide-react';
-import { OrderDto, OrdersService, ShipmentDto } from '../../api';
+import { OrderDto, OrdersService, ShipmentDto, ShipmentsService } from '../../api';
 import { Badge, Button } from '../../shared/components';
 import {
   formatCurrencyAmount,
@@ -34,9 +35,57 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
 }) => {
   const [copiedId, setCopiedId] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [fetchedShipment, setFetchedShipment] = useState<ShipmentDto | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const resolvedShipment = shipment ?? fetchedShipment;
   const orderState = normalizeOrderState(order.status ?? undefined);
-  const shipmentState = shipment ? normalizeShipmentState(shipment.status ?? undefined) : null;
+  const shipmentState = resolvedShipment
+    ? normalizeShipmentState(resolvedShipment.status ?? undefined)
+    : null;
+
+  const syncOrderAndShipment = useCallback(async () => {
+    if (!order.id || order.id.startsWith('demo-')) {
+      return;
+    }
+    setIsRefreshing(true);
+    try {
+      try {
+        const latestOrder = await OrdersService.getOrderById({ id: order.id });
+        if (onOrderUpdated) {
+          onOrderUpdated(latestOrder);
+        }
+      } catch {
+        // Keep current order snapshot if OrderService fails
+      }
+
+      try {
+        const latestShipment = await ShipmentsService.getShipmentByOrderId({ orderId: order.id });
+        setFetchedShipment(latestShipment);
+      } catch {
+        // Shipment may not exist yet before OrderConfirmed
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [onOrderUpdated, order.id]);
+
+  useEffect(() => {
+    void syncOrderAndShipment();
+  }, [syncOrderAndShipment, order.status]);
+
+  useEffect(() => {
+    if (!order.id || order.id.startsWith('demo-')) {
+      return;
+    }
+    if (orderState === 'Cancelled' || shipmentState === 'Delivered') {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void syncOrderAndShipment();
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [order.id, orderState, shipmentState, syncOrderAndShipment]);
 
   const handleCopyOrderId = () => {
     if (order.id) {
@@ -105,7 +154,13 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
         <div>
           <div className="flex items-center space-x-2">
             <h2 className="text-xl font-bold text-gray-900">
-              {isCancelled ? 'Order Cancelled' : 'Order Received'}
+              {isCancelled
+                ? 'Order Cancelled'
+                : shipmentState === 'Delivered'
+                  ? 'Order Delivered'
+                  : shipmentState === 'HandedOver' || shipmentState === 'InTransit'
+                    ? 'Order Shipped'
+                    : 'Order Received'}
             </h2>
             <Badge
               variant={
@@ -118,13 +173,17 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
                       : 'info'
               }
             >
-              {orderState === 'Confirmed'
-                ? 'Order Confirmed'
-                : orderState === 'PaymentUnknown'
-                  ? 'Verifying Payment'
-                  : orderState === 'Reserving' || orderState === 'Paying'
-                    ? 'Processing'
-                    : orderState}
+              {shipmentState === 'Delivered'
+                ? 'Delivered'
+                : shipmentState === 'HandedOver' || shipmentState === 'InTransit'
+                  ? 'Shipped'
+                  : orderState === 'Confirmed'
+                    ? 'Order Confirmed'
+                    : orderState === 'PaymentUnknown'
+                      ? 'Verifying Payment'
+                      : orderState === 'Reserving' || orderState === 'Paying'
+                        ? 'Processing'
+                        : orderState}
             </Badge>
           </div>
           <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
@@ -152,6 +211,15 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
         </div>
 
         <div className="flex items-center space-x-3">
+          <Button
+            variant="outline"
+            size="sm"
+            isLoading={isRefreshing}
+            onClick={() => void syncOrderAndShipment()}
+          >
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+            Refresh Status
+          </Button>
           <Button variant="outline" size="sm" onClick={onContinueShopping}>
             Continue Shopping
             <ArrowRight className="w-4 h-4 ml-1.5" />
@@ -170,16 +238,24 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
           <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h3 className="text-sm font-bold text-emerald-900">
-              {orderState === 'Confirmed'
-                ? 'Thank you! Your order is confirmed.'
-                : 'Your order is being processed.'}
+              {shipmentState === 'Delivered'
+                ? 'Your package has been delivered!'
+                : shipmentState === 'HandedOver' || shipmentState === 'InTransit'
+                  ? 'Your order is on the way!'
+                  : orderState === 'Confirmed'
+                    ? 'Thank you! Your order is confirmed.'
+                    : 'Your order is being processed.'}
             </h3>
             <p className="text-xs text-emerald-800 leading-relaxed">
-              {orderState === 'Confirmed'
-                ? 'We have sent an order confirmation to your email. Your items will be packaged and dispatched promptly.'
-                : orderState === 'PaymentUnknown'
-                  ? 'We are confirming the payment with your financial provider. Please do not re-submit; your order is safe.'
-                  : 'We are completing the security checks and payment authorization for your order.'}
+              {shipmentState === 'Delivered'
+                ? 'Your shipment was delivered and signed for at your destination address.'
+                : shipmentState === 'HandedOver' || shipmentState === 'InTransit'
+                  ? 'Your package has been handed over to the carrier and is in transit to your delivery address.'
+                  : orderState === 'Confirmed'
+                    ? 'We have sent an order confirmation to your email. Your items will be packaged and dispatched promptly.'
+                    : orderState === 'PaymentUnknown'
+                      ? 'We are confirming the payment with your financial provider. Please do not re-submit; your order is safe.'
+                      : 'We are completing the security checks and payment authorization for your order.'}
             </p>
           </div>
         </div>
@@ -252,7 +328,7 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
       )}
 
       {/* Shipment & Tracking Information */}
-      {(order.trackingNumber || shipment?.trackingNumber) && (
+      {(order.trackingNumber || resolvedShipment?.trackingNumber) && (
         <div className="bg-gray-50 border border-gray-200/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -263,16 +339,24 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
                 Carrier & Tracking
               </span>
               <span className="text-sm font-bold text-gray-900">
-                {shipment?.carrier ?? 'Express Delivery'} &middot;{' '}
+                {resolvedShipment?.carrier ?? 'Express Delivery'} &middot;{' '}
                 <span className="font-mono text-blue-600">
-                  {order.trackingNumber ?? shipment?.trackingNumber}
+                  {order.trackingNumber ?? resolvedShipment?.trackingNumber}
                 </span>
               </span>
             </div>
           </div>
 
           <div className="text-xs text-gray-500">
-            Estimated Delivery: <strong className="text-gray-900">2–4 business days</strong>
+            {shipmentState === 'Delivered' ? (
+              <span className="text-green-700 font-bold">✓ Delivered to Recipient</span>
+            ) : shipmentState === 'HandedOver' || shipmentState === 'InTransit' ? (
+              <span className="text-blue-700 font-bold">In Transit with Carrier</span>
+            ) : (
+              <>
+                Estimated Delivery: <strong className="text-gray-900">2–4 business days</strong>
+              </>
+            )}
           </div>
         </div>
       )}
