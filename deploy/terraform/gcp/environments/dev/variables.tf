@@ -6,13 +6,13 @@ variable "project_id" {
 variable "region" {
   type        = string
   description = "The GCP region for all regional resources."
-  default     = "us-central1"
+  default     = "asia-southeast1"
 }
 
 variable "zone" {
   type        = string
   description = "The GCP zone for single-VM resources (RabbitMQ)."
-  default     = "us-central1-a"
+  default     = "asia-southeast1-a"
 }
 
 variable "environment" {

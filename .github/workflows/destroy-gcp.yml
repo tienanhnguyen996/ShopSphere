@@ -15,7 +15,7 @@ permissions:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: us-central1
+  REGION: asia-southeast1
   WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
   WIF_SERVICE_ACCOUNT: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
   TF_STATE_BUCKET: ${{ secrets.GCP_TF_STATE_BUCKET }}
