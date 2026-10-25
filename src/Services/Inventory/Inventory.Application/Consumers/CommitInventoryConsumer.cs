@@ -90,6 +90,10 @@ public class CommitInventoryConsumer :
                 .ToList();
 
             await PublishCommittedAsync(orderId, committedItems, publishEndpoint, ct);
+            if (_dbContext is DbContext efDb && efDb.ChangeTracker.HasChanges())
+            {
+                await _dbContext.SaveChangesAsync(ct);
+            }
         }
         catch (ReservationExpiredDomainException ex)
         {
@@ -104,6 +108,10 @@ public class CommitInventoryConsumer :
                 $"Reservation expired at {ex.ExpiredAtUtc:O} UTC before payment was confirmed.",
                 publishEndpoint,
                 ct);
+            if (_dbContext is DbContext efExpiredDb && efExpiredDb.ChangeTracker.HasChanges())
+            {
+                await _dbContext.SaveChangesAsync(ct);
+            }
         }
     }
 

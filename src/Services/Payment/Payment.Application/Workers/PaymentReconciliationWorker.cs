@@ -29,7 +29,7 @@ public class PaymentReconciliationWorker : BackgroundService
     {
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _interval = interval ?? TimeSpan.FromSeconds(30);
+        _interval = interval ?? TimeSpan.FromSeconds(8);
         _batchSize = batchSize > 0 ? batchSize : 50;
     }
 
@@ -141,6 +141,10 @@ public class PaymentReconciliationWorker : BackgroundService
 
                         await publishEndpoint.Publish(envelope, ct);
                         await publishEndpoint.Publish(envelope.Payload, ct);
+                        if (dbContext is DbContext efSuccessDb && efSuccessDb.ChangeTracker.HasChanges())
+                        {
+                            await dbContext.SaveChangesAsync(ct);
+                        }
                         break;
                     }
                     else if (queryResult.Status == PaymentProviderStatus.Failed)
@@ -171,6 +175,10 @@ public class PaymentReconciliationWorker : BackgroundService
 
                         await publishEndpoint.Publish(envelope, ct);
                         await publishEndpoint.Publish(envelope.Payload, ct);
+                        if (dbContext is DbContext efFailedDb && efFailedDb.ChangeTracker.HasChanges())
+                        {
+                            await dbContext.SaveChangesAsync(ct);
+                        }
                         break;
                     }
                     else

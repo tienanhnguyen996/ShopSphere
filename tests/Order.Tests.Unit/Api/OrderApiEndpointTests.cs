@@ -144,6 +144,48 @@ public class OrderApiEndpointTests
         cancelled.CancellationReason.Should().Be("Changed my mind");
     }
 
+    [Fact]
+    public async Task Checkout_WithVndPaymentMethod_ShouldConvertUsdCartQuoteToVndUsingHardcodedExchangeRate()
+    {
+        var orders = new List<ShopSphere.Services.Order.Domain.Order>();
+        var idempotencyRecords = new List<IdempotencyRecord>();
+        var publishMock = new Mock<IPublishEndpoint>();
+        var cartClientMock = new Mock<ICartClient>();
+
+        cartClientMock
+            .Setup(c => c.GetCheckoutQuoteAsync("cust-vn", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new CartCheckoutQuoteDto(
+                "cust-vn",
+                [new CartQuoteItemDto("KB-RGB-001", "Mechanical Keyboard", 2, 100.00m, 200.00m, "USD", 1, true)],
+                200.00m,
+                "USD",
+                new Dictionary<string, int> { ["KB-RGB-001"] = 1 },
+                true,
+                [])));
+
+        cartClientMock
+            .Setup(c => c.ClearCartAsync("cust-vn", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success());
+
+        await using var app = await CreateTestAppAsync(orders, idempotencyRecords, cartClientMock.Object, publishMock.Object);
+        using var client = app.GetTestClient();
+        client.DefaultRequestHeaders.Add("X-Customer-Id", "cust-vn");
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/orders/checkout")
+        {
+            Content = JsonContent.Create(new CheckoutRequest(CreateAddressRequest(), "digital_wallet"))
+        };
+        req.Headers.Add("Idempotency-Key", "idem-vnd-001");
+
+        var response = await client.SendAsync(req);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var createdOrder = await response.Content.ReadFromJsonAsync<OrderDto>();
+        createdOrder.Should().NotBeNull();
+        createdOrder!.Currency.Should().Be("VND");
+        createdOrder.TotalAmount.Should().Be(5_080_000m); // 200 USD * 25,400 VND
+    }
+
     private static async Task<WebApplication> CreateTestAppAsync(
         List<ShopSphere.Services.Order.Domain.Order>? orders = null,
         List<IdempotencyRecord>? idempotencyRecords = null,

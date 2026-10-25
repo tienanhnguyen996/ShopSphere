@@ -19,20 +19,38 @@ function getPaymentMethodDetails(method: PaymentMethodType): {
     case 'credit_card':
       return {
         title: 'Credit or Debit Card',
-        subtitle: 'Visa, Mastercard, American Express via Stripe.',
-        badgeText: 'Stripe',
+        subtitle: 'Visa, Mastercard, American Express via Stripe (or Mock fallback).',
+        badgeText: 'Stripe / USD',
       };
     case 'digital_wallet':
       return {
-        title: 'MoMo E-Wallet',
-        subtitle: 'Instant mobile checkout & QR scan.',
-        badgeText: 'MoMo',
+        title: 'MoMo E-Wallet (Vietnam Sandbox)',
+        subtitle: 'Instant mobile checkout & QR scan (auto-converts 1 USD = 25,400 VND).',
+        badgeText: 'MoMo / VND',
       };
     case 'bank_transfer':
       return {
-        title: 'VNPay Banking / QR',
-        subtitle: 'Online banking & VNPAY-QR payment.',
-        badgeText: 'VNPay',
+        title: 'VNPay Banking / QR (Vietnam Sandbox)',
+        subtitle: 'Online banking & VNPAY-QR payment (auto-converts 1 USD = 25,400 VND).',
+        badgeText: 'VNPay / VND',
+      };
+    case 'decline':
+      return {
+        title: '[Test] Declined Card (Insufficient Funds)',
+        subtitle: 'Simulates immediate PaymentRejected and automatic inventory release.',
+        badgeText: 'Mock Decline',
+      };
+    case 'timeout':
+      return {
+        title: '[Test] Provider Timeout -> Reconciles to Confirmed',
+        subtitle: 'Simulates PaymentUnknown state, then background worker reconciles to Succeeded.',
+        badgeText: 'Mock Timeout',
+      };
+    case 'network_error':
+      return {
+        title: '[Test] Network Error -> Reconciles to Cancelled',
+        subtitle: 'Simulates PaymentUnknown state, then background worker reconciles to Failed.',
+        badgeText: 'Mock Network',
       };
     default: {
       const _exhaustiveCheck: never = method;
@@ -41,7 +59,14 @@ function getPaymentMethodDetails(method: PaymentMethodType): {
   }
 }
 
-const PAYMENT_METHODS: PaymentMethodType[] = ['credit_card', 'digital_wallet', 'bank_transfer'];
+const PAYMENT_METHODS: PaymentMethodType[] = [
+  'credit_card',
+  'digital_wallet',
+  'bank_transfer',
+  'decline',
+  'timeout',
+  'network_error',
+];
 
 export const PaymentSelectionForm: React.FC<PaymentSelectionFormProps> = ({
   selectedMethod,

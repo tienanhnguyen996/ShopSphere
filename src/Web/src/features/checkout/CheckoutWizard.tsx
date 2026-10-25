@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { CheckoutQuoteDto, OrderDto, OrdersService, ShippingAddressRequest } from '../../api';
 import { Badge, Button, Input, Modal } from '../../shared/components';
-import { PaymentMethodType } from '../../shared/types';
+import {
+  convertUsdToVnd,
+  formatCurrencyAmount,
+  isVndPaymentMethod,
+  PaymentMethodType,
+  USD_TO_VND_RATE,
+} from '../../shared/types';
 import { PaymentSelectionForm } from './PaymentSelectionForm';
 
 export interface CheckoutWizardProps {
@@ -91,6 +97,7 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
 
   const quoteItems = quote?.items ?? [];
   const hasValidationWarnings = (quote?.validationErrors?.length ?? 0) > 0;
+  const useVndExchange = isVndPaymentMethod(paymentMethod);
 
   return (
     <Modal isOpen={isOpen} title="Secure Checkout" onClose={onClose} maxWidthClassName="max-w-2xl">
@@ -235,30 +242,43 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
             <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
               Order Summary
             </h3>
-            <Badge variant={hasValidationWarnings ? 'warning' : 'success'}>
-              {hasValidationWarnings ? 'Price Updated' : 'Guaranteed Price'}
-            </Badge>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              {useVndExchange && (
+                <Badge variant="info">
+                  FX: 1 USD = {USD_TO_VND_RATE.toLocaleString('en-US')} VND
+                </Badge>
+              )}
+              <Badge variant={hasValidationWarnings ? 'warning' : 'success'}>
+                {hasValidationWarnings ? 'Price Updated' : 'Guaranteed Price'}
+              </Badge>
+            </div>
           </div>
           {quoteItems.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {quoteItems.map((item, idx) => (
-                <div
-                  key={`${item.sku ?? idx}`}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '13px',
-                    color: '#334155',
-                  }}
-                >
-                  <span>
-                    {item.productName ?? item.sku} × {item.quantity ?? 1}
-                  </span>
-                  <strong>
-                    {item.currency ?? 'USD'} {(item.lineTotal ?? 0).toFixed(2)}
-                  </strong>
-                </div>
-              ))}
+              {quoteItems.map((item, idx) => {
+                const rawLineTotal = item.lineTotal ?? 0;
+                const itemCurrency = item.currency ?? 'USD';
+                const displayLine =
+                  useVndExchange && itemCurrency.toUpperCase() !== 'VND'
+                    ? formatCurrencyAmount(convertUsdToVnd(rawLineTotal), 'VND', true)
+                    : `${itemCurrency} ${rawLineTotal.toFixed(2)}`;
+                return (
+                  <div
+                    key={`${item.sku ?? idx}`}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '13px',
+                      color: '#334155',
+                    }}
+                  >
+                    <span>
+                      {item.productName ?? item.sku} × {item.quantity ?? 1}
+                    </span>
+                    <strong>{displayLine}</strong>
+                  </div>
+                );
+              })}
               <div
                 style={{
                   borderTop: '1px solid #cbd5e1',
@@ -273,7 +293,9 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
               >
                 <span>Total Due</span>
                 <span>
-                  {quote?.currency ?? 'USD'} {(quote?.subtotal ?? 0).toFixed(2)}
+                  {useVndExchange && (quote?.currency ?? 'USD').toUpperCase() !== 'VND'
+                    ? formatCurrencyAmount(convertUsdToVnd(quote?.subtotal ?? 0), 'VND', true)
+                    : `${quote?.currency ?? 'USD'} ${(quote?.subtotal ?? 0).toFixed(2)}`}
                 </span>
               </div>
             </div>

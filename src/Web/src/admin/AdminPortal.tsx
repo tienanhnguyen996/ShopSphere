@@ -8,14 +8,19 @@ import {
   ShipmentDto,
 } from '../api';
 import { Badge, Button } from '../shared/components';
-import { Product, StockSummary } from '../shared/types';
+import {
+  formatCurrencyAmount,
+  normalizeOrderState,
+  OrderState,
+  Product,
+  StockSummary,
+} from '../shared/types';
 import {
   EmailPreviewCard,
   OrderStateVisualizer,
   OrderTrackingTimeline,
   UnknownPaymentBanner,
 } from '../features/orders';
-import { normalizeOrderState, OrderState } from '../shared/types';
 
 export interface AdminPortalProps {
   order: OrderDto;
@@ -248,8 +253,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </Badge>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  Total: ${(order.totalAmount ?? 0).toFixed(2)} {order.currency ?? 'USD'} &middot;
-                  Payment: {order.paymentMethod ?? 'credit_card'}
+                  Total: {formatCurrencyAmount(order.totalAmount ?? 0, order.currency, true)}{' '}
+                  &middot; Payment: {order.paymentMethod ?? 'credit_card'}
                 </p>
               </div>
 

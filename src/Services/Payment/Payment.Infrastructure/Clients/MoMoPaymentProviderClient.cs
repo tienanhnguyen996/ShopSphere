@@ -178,7 +178,7 @@ public class MoMoPaymentProviderClient : IPaymentProviderClient
 
         var requestId = Guid.NewGuid().ToString();
         var orderId = request.PaymentAttemptId.ToString();
-        var amountVnd = (long)Math.Round(request.Amount, MidpointRounding.AwayFromZero);
+        var amountVnd = ConvertToVnd(request.Amount, request.Currency);
         var cleanTransId = request.ProviderTransactionId.Replace("momo_", "", StringComparison.OrdinalIgnoreCase);
         var description = string.IsNullOrWhiteSpace(request.Reason) ? "ShopSphere Order Refund" : request.Reason;
 
@@ -230,15 +230,17 @@ public class MoMoPaymentProviderClient : IPaymentProviderClient
         }
     }
 
-    private static long ConvertToVnd(decimal amount, string currency)
-    {
-        if (currency.Equals("VND", StringComparison.OrdinalIgnoreCase))
-        {
-            return (long)Math.Round(amount, MidpointRounding.AwayFromZero);
-        }
+    public const decimal UsdToVndRate = 25400m;
+    public const long MinMoMoAmountVnd = 1000L;
+    public const long MaxMoMoAmountVnd = 50_000_000L;
 
-        // Standard test exchange rate: 1 USD ~ 25,400 VND
-        return (long)Math.Round(amount * 25400m, MidpointRounding.AwayFromZero);
+    public static long ConvertToVnd(decimal amount, string currency)
+    {
+        var rawVnd = currency.Equals("VND", StringComparison.OrdinalIgnoreCase)
+            ? (long)Math.Round(amount, MidpointRounding.AwayFromZero)
+            : (long)Math.Round(amount * UsdToVndRate, MidpointRounding.AwayFromZero);
+
+        return Math.Clamp(rawVnd, MinMoMoAmountVnd, MaxMoMoAmountVnd);
     }
 
     private static string ComputeHmacSha256(string message, string secretKey)

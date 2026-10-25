@@ -102,6 +102,10 @@ public class RefundPaymentConsumer :
                 attempt.Currency,
                 publishEndpoint,
                 ct);
+            if (_dbContext is DbContext efDb && efDb.ChangeTracker.HasChanges())
+            {
+                await _dbContext.SaveChangesAsync(ct);
+            }
         }
         else
         {
