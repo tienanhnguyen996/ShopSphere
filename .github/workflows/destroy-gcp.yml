@@ -24,7 +24,7 @@ jobs:
   destroy:
     name: Terraform Destroy Dev Infrastructure
     runs-on: ubuntu-latest
-    if: github.event.inputs.confirmation == 'DESTROY-ALL' && env.PROJECT_ID != ''
+    if: github.event.inputs.confirmation == 'DESTROY-ALL'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

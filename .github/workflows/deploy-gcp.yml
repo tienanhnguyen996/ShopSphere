@@ -61,7 +61,6 @@ jobs:
     name: Terraform Plan & Apply
     needs: validate
     runs-on: ubuntu-latest
-    if: env.PROJECT_ID != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -97,7 +96,7 @@ jobs:
     name: Build Containers & Deploy to Cloud Run
     needs: terraform-plan-apply
     runs-on: ubuntu-latest
-    if: (github.event.inputs.deploy_containers == 'true' || github.event.inputs.deploy_containers == true) && env.PROJECT_ID != ''
+    if: github.event.inputs.deploy_containers == true || github.event.inputs.deploy_containers == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
