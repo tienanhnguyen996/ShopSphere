@@ -14,9 +14,11 @@ AI-powered e-commerce fulfillment platform built with .NET microservices. Orches
   - [Monitoring & Observability Endpoints](#monitoring--observability-endpoints)
   - [Credentials Reference](#credentials-reference)
 - [Order Saga Lifecycle & Payment Flows](#order-saga-lifecycle--payment-flows)
+  - [Pre-Checkout: Identity, Catalog & Cart Read Models](#pre-checkout-identity-catalog--cart-read-models)
   - [End-to-End Saga State Machine](#end-to-end-saga-state-machine)
   - [Hardcoded USD to VND Currency Exchange](#hardcoded-usd-to-vnd-currency-exchange)
   - [How Each Payment Mode Affects the Lifecycle](#how-each-payment-mode-affects-the-lifecycle)
+  - [Post-Payment Shipping, Carrier Routing & Notification Lifecycle](#post-payment-shipping-carrier-routing--notification-lifecycle)
   - [Monitoring & Validation Guide for Each Step & Payment Scenario](#monitoring--validation-guide-for-each-step--payment-scenario)
     - [1. Step-by-Step Lifecycle Validation Checklist](#1-step-by-step-lifecycle-validation-checklist)
     - [2. Validating Each Payment Scenario](#2-validating-each-payment-scenario)
@@ -186,7 +188,7 @@ All SQL databases are automatically migrated and seeded with default products (`
    docker exec -it shopsphere-redis redis-cli
    # Inside redis-cli:
    KEYS *
-   GET "ShopSphere_Cart:cart:cust-alex-01"
+   GET "ShopSphereCart:cart:cust-alex-01"
    ```
 4. **Docker Container Resource & Log Monitoring**:
    ```bash
@@ -202,75 +204,105 @@ All local development credentials (SQL Server `sa` password, per-service databas
 
 ## Order Saga Lifecycle & Payment Flows
 
-ShopSphere uses a **MassTransit State Machine Saga (`CheckoutStateMachine`)** paired with **Transactional Outbox** tables (`InboxState`, `OutboxState`, `OutboxMessage`) and `OrderStateSyncConsumer` to coordinate distributed checkout across **Order**, **Inventory**, **Payment**, **Shipping**, and **Notification** services without distributed two-phase locks.
+ShopSphere uses a **MassTransit State Machine Saga (`CheckoutStateMachine` in `Order.Worker`)** paired with **Transactional Outbox** tables (`InboxState`, `OutboxState`, `OutboxMessage` in each service's dedicated SQL schema) and `OrderStateSyncConsumer` to coordinate distributed checkout across **Order**, **Inventory**, **Payment**, **Shipping**, and **Notification** services without distributed two-phase locks.
+
+### Pre-Checkout: Identity, Catalog & Cart Read Models
+
+1. **Identity Service (`:5007`, `ShopSphereIdentity.[identity]`)**:
+   - Manages users (`[identity].[Users]`), RBAC roles (`[identity].[Roles]`, `[identity].[Permissions]`), and refresh tokens (`[identity].[RefreshTokens]`).
+   - Seeds the default `SuperAdmin` account (`admin@shopsphere.local` / `AdminPassword123!`) via `IdentityDbSeeder`.
+2. **Catalog Service (`:5001`, `ShopSphereCatalog.[catalog]` + Redis `ShopSphereCatalog:*`)**:
+   - Owns product aggregates (`[catalog].[Products]`) and price history (`[catalog].[PriceHistory]`), seeded in `USD` via `CatalogDbSeeder`.
+   - Uses Redis as a read-through cache (`DistributedCacheService`), invalidating keys on product/price mutations.
+3. **Cart Service (`:5002`, Redis `ShopSphereCart:cart:{customerId}`)**:
+   - Stores active shopping carts in Redis (`CartRepository`) with a sliding TTL.
+   - Exposes `GET /api/v1/carts/{customerId}/quote` (`GetCartPriceQuoteQuery`), which verifies live catalog prices against `Catalog.Api` before checkout begins.
 
 ### End-to-End Saga State Machine
 
-| Step | Saga / Order State | Trigger | Command / Event Dispatched | What Happens Under the Hood |
-|------|--------------------|---------|----------------------------|-----------------------------|
-| **1** | `Pending` | `POST /api/v1/orders/checkout` | `OrderSubmitted` | `Order.Api` fetches a verified price quote from `Cart.Api`, snapshots items (converting `USD` → `VND` if MoMo/VNPay is selected), saves `Order` (`Pending`) + `OrderSubmitted` outbox event, and clears the Redis cart. |
-| **2** | `Reserving` | `OrderSubmitted` | `ReserveInventory` | `CheckoutStateMachine` transitions to `Reserving` and publishes `ReserveInventory`. `OrderStateSyncConsumer` updates the `Order` aggregate to `Reserving`. |
-| **3** | `Paying` | `InventoryReserved` | `CollectPayment` | `ReserveInventoryConsumer` locks stock with a 15-minute TTL (`StockReservation` in `Held` status) and publishes `InventoryReserved`. Saga transitions to `Paying` and emits `CollectPayment`. |
-| **4a** | `PaymentUnknown` *(if timeout)* | `PaymentPendingResolution` | *(Reconciliation Sweep)* | **Timeout = Unknown, NOT Failure**: If the payment gateway times out or drops connection, `CollectPaymentConsumer` marks the attempt `PaymentUnknown` and emits `PaymentPendingResolution`. Inventory remains held while `PaymentReconciliationWorker` queries the provider every 8s. |
-| **4b** | `Committing` | `PaymentSucceeded` | `CommitInventory` | Once payment succeeds (immediately or via reconciliation), Saga transitions to `Committing` and emits `CommitInventory`. |
-| **5** | `Shipping` | `InventoryCommitted` | `CreateShipment` | `CommitInventoryConsumer` verifies the hold has not expired, permanently deducts stock, and emits `InventoryCommitted`. Saga transitions to `Shipping` and emits `CreateShipment`. |
-| **6** | `Confirmed` | `ShipmentCreated` | `OrderConfirmed` | `CreateShipmentConsumer` routes to **Shippo** (US/Intl), **GHN** (Vietnam `VN`), or **MockCarrierProviderClient**, assigns a tracking number, and emits `ShipmentCreated`. Saga transitions to `Confirmed` and emits `OrderConfirmed` (triggering Email/SMS in `NotificationService`). |
-| **7** | `Refunding` → `Cancelled` *(Compensation)* | `InventoryCommitFailed` / `ShipmentFailed` / Late `PaymentSucceeded` | `RefundPayment` → `PaymentRefunded` → `OrderCancelled` | If inventory commit or shipment creation fails after payment was captured (or a late `PaymentSucceeded` arrives on an already-cancelled order), the Saga transitions to `Refunding`, refunds the charge, and settles in `Cancelled`. |
+| Step | `CheckoutSagaState.CurrentState` (`[order].[CheckoutSagaStates]`) | `Order.Status` (`[order].[Orders]`) | Trigger Event / Endpoint | Command / Event Emitted | What Happens Under the Hood |
+|------|-------------------------------------------------------------------|-------------------------------------|--------------------------|-------------------------|-----------------------------|
+| **1** | *(Not created yet)* | `Pending` | `POST /api/v1/orders/checkout` | `OrderSubmitted` | `SubmitCheckoutCommandHandler` (`Order.Api`) fetches a verified quote from `Cart.Api`, converts item prices & `TotalAmount` from `USD` → `VND` (`1 USD = 25,400 VND`) if a VND payment method (`momo` / `vnpay`) is selected, writes `[order].[Orders]`, `[order].[OrderItems]`, `[order].[IdempotencyRecords]`, and `[order].[OutboxMessage]` in a single SQL transaction, and clears the Redis cart. |
+| **2** | `Reserving` | `Reserving` | `OrderSubmitted` | `ReserveInventory` | `CheckoutStateMachine` (`Order.Worker`) creates the saga instance in `Reserving` and publishes `ReserveInventory` (15-min TTL). `OrderStateSyncConsumer` updates `[order].[Orders].[Status]` to `Reserving`. |
+| **2x** | `Cancelled` | `Cancelled` | `InventoryRejected` | `OrderCancelled` | If any SKU has insufficient `QuantityAvailable`, `ReserveInventoryConsumer` (`Inventory.Worker`) publishes `InventoryRejected`. The Saga transitions to `Cancelled` and emits `OrderCancelled`. |
+| **3** | `Paying` | `Paying` | `InventoryReserved` | `CollectPayment` | `ReserveInventoryConsumer` decrements `QuantityAvailable`, increments `QuantityHeld` on `[inventory].[StockItems]`, inserts `[inventory].[Reservations]` (`Status = 1 Held`, `ExpiresAtUtc = +15m`), and emits `InventoryReserved`. Saga transitions to `Paying` and emits `CollectPayment`. |
+| **4a** | `PaymentUnknown` | `PaymentUnknown` | `PaymentPendingResolution` | *(Awaits `PaymentReconciliationWorker`)* | **Timeout = Unknown, NOT Failure**: If the payment gateway times out or drops connection, `CollectPaymentConsumer` (`Payment.Worker`) records `[payment].[PaymentAttempts]` with `Status = 3` (`PaymentUnknown`) and emits `PaymentPendingResolution`. Inventory remains held while `PaymentReconciliationWorker` polls `GetStatusAsync` every 8s. |
+| **4b** | `Cancelled` | `Cancelled` | `PaymentRejected` | `ReleaseInventory` + `OrderCancelled` | If the payment gateway declines the charge (or reconciliation confirms a network error never charged the customer), Saga transitions to `Cancelled`, emits `ReleaseInventory` (`ReleaseInventoryConsumer` restores `QuantityAvailable` and marks `Reservations.Status = 3 Released`), and emits `OrderCancelled`. |
+| **5** | `Committing` | `Paying` *(PaymentConfirmed)* | `PaymentSucceeded` | `CommitInventory` | When payment succeeds (immediately or via `PaymentReconciliationWorker`), `OrderStateSyncConsumer` records `PaymentAttemptId` on the `Order`. Saga transitions to `Committing` and emits `CommitInventory` (unless the reservation already expired during `PaymentUnknown`, in which case it transitions directly to `Refunding`). |
+| **6** | `Shipping` | `Paying` *(PaymentConfirmed)* | `InventoryCommitted` | `CreateShipment` | `CommitInventoryConsumer` (`Inventory.Worker`) verifies inside the SQL transaction that `ExpiresAtUtc` has not passed, decrements `QuantityHeld`, increments `QuantityCommitted`, marks `Reservations.Status = 2` (`Committed`), and emits `InventoryCommitted`. Saga transitions to `Shipping` and emits `CreateShipment`. |
+| **7** | `Confirmed` | `Confirmed` | `ShipmentCreated` | `OrderConfirmed` | `CreateShipmentConsumer` (`Shipping.Worker`) routes to **GHN Sandbox**, **Shippo Sandbox**, or **MockCarrierProviderClient**, saves `[shipping].[Shipments]` (`Status = 'LabelCreated'`) with a `TrackingNumber`, and emits `ShipmentCreated`. Saga transitions to `Confirmed` and emits `OrderConfirmed` (`OrderStateSyncConsumer` sets `Order.Status = 'Confirmed'`, `ShipmentId`, and `TrackingNumber`). |
+| **8** | `Refunding` → `Cancelled` | `Refunding` → `Cancelled` | `InventoryCommitFailed` / `ShipmentFailed` / Late `PaymentSucceeded` | `RefundPayment` → `PaymentRefunded` → `OrderCancelled` | **Compensation & Late-Event Protection**: If stock commit fails (`InventoryCommitFailed`), carrier label creation fails (`ShipmentFailed`), or a late `PaymentSucceeded` arrives after an order was already `Cancelled` (e.g., after `ReservationExpiryWorker` emitted `InventoryReservationExpired`), Saga transitions to `Refunding` and emits `RefundPayment`. `RefundPaymentConsumer` refunds the charge (`PaymentAttempts.Status = 5 Refunded`) and emits `PaymentRefunded`, settling the order in `Cancelled`. |
 
 ### Hardcoded USD to VND Currency Exchange
 
 Catalog products are priced in `USD`. Because Vietnamese payment gateways (**MoMo** and **VNPay**) process transactions in `VND` and validate total transaction amounts in `VND`, ShopSphere applies a deterministic hardcoded exchange rate (**`1 USD = 25,400 VND`**):
 
 - **Frontend (`CheckoutWizard`, `CustomerOrderReceipt`, `LiveOrderTracker`, `AdminPortal`)**: Selecting **MoMo E-Wallet** (`digital_wallet`) or **VNPay Banking / QR** (`bank_transfer`) displays the `FX: 1 USD = 25,400 VND` badge and shows converted `VND` item totals and `Total Due` alongside the `USD` equivalent.
-- **Order Service (`SubmitCheckoutCommandHandler`)**: Automatically converts snapshot item prices and `Order.TotalAmount` from `USD` to `VND` (`Currency = "VND"`) when a VND payment method is selected.
-- **Payment Service (`MoMoPaymentProviderClient` & `VnPayPaymentProviderClient`)**: Converts any non-VND amount using `1 USD = 25,400 VND` for both charges and refunds, and clamps MoMo Sandbox amounts to MoMo's required test bounds (`1,000 VND` – `50,000,000 VND`).
+- **Order Service (`SubmitCheckoutCommandHandler`)**: Automatically converts snapshot item prices and `Order.TotalAmount` from `USD` to `VND` (`Currency = "VND"`) when a VND payment method (`momo`, `digital_wallet`, `ewallet`, `vnpay`, `bank_transfer`, `banking`) is selected.
+- **Payment Service (`MoMoPaymentProviderClient` & `VnPayPaymentProviderClient`)**: Converts any non-VND amount using `1 USD = 25,400 VND` for both `ChargeAsync` and `RefundAsync`, and clamps MoMo Sandbox amounts to MoMo's required test bounds (`1,000 VND` – `50,000,000 VND`).
 
 ### How Each Payment Mode Affects the Lifecycle
 
 In the Checkout modal (`PaymentSelectionForm`), you can select any of the **3 Sandbox Providers** or **3 Simulated Failure/Timeout Test Modes**, routed by `RoutingPaymentProviderClient`:
 
 #### 1. `credit_card` — Stripe Sandbox / Mock Card (USD Happy Path)
-- **Flow**: `Pending` → `Reserving` → `Paying` → `Committing` → `Shipping` → **`Confirmed`**
+- **Saga Path**: `Pending` → `Reserving` → `Paying` → `Committing` → `Shipping` → **`Confirmed`**
 - **What happens**:
-  - Uses `StripePaymentProviderClient` if `PaymentSettings:Stripe:ApiKey` is configured, or falls back automatically to `MockPaymentProviderClient` (`FallbackToMockOnMissingCredentials = true`).
-  - Immediately approves the charge (`mock_tx_<guid>` or `pi_<id>`) and publishes `PaymentSucceeded`.
+  - Uses `StripePaymentProviderClient` (`https://api.stripe.com/v1/payment_intents`) if `PaymentSettings:Stripe:ApiKey` is configured, or falls back automatically to `MockPaymentProviderClient` (`FallbackToMockOnMissingCredentials = true`).
+  - Immediately approves the charge (`mock_tx_<attemptId>` or `pi_<id>`) in `USD` and publishes `PaymentSucceeded`.
   - Inventory hold is committed, carrier label is created, and order finishes at **`Confirmed`**.
 
 #### 2. `digital_wallet` — MoMo E-Wallet Sandbox (`VND`)
-- **Flow**: `Pending` → `Reserving` → `Paying` → `Committing` → `Shipping` → **`Confirmed`** (or `PaymentUnknown` if offline)
+- **Saga Path**: `Pending` → `Reserving` → `Paying` → `Committing` → `Shipping` → **`Confirmed`** (or `PaymentUnknown` if sandbox is unreachable)
 - **What happens**:
-  - `SubmitCheckoutCommand` converts the order snapshot from `USD` to `VND` (`1 USD = 25,400 VND`).
-  - `RoutingPaymentProviderClient` routes to `MoMoPaymentProviderClient`, which signs an HMAC-SHA256 request to `https://test-payment.momo.vn/v2/gateway/api/create`.
+  - `SubmitCheckoutCommandHandler` converts the order snapshot from `USD` to `VND` (`1 USD = 25,400 VND`).
+  - `RoutingPaymentProviderClient` routes to `MoMoPaymentProviderClient`, which clamps the VND amount to `[1,000, 50,000,000] VND` and signs an HMAC-SHA256 request (`captureWallet`) to `https://test-payment.momo.vn/v2/gateway/api/create`.
 
 #### 3. `bank_transfer` — VNPay Banking / QR Sandbox (`VND`)
-- **Flow**: `Pending` → `Reserving` → `Paying` → `Committing` → `Shipping` → **`Confirmed`**
+- **Saga Path**: `Pending` → `Reserving` → `Paying` → `Committing` → `Shipping` → **`Confirmed`**
 - **What happens**:
-  - `SubmitCheckoutCommand` converts the order snapshot from `USD` to `VND` (`1 USD = 25,400 VND`).
-  - `RoutingPaymentProviderClient` routes to `VnPayPaymentProviderClient`, which generates a signed VNPay 2.1.0 transaction (`vnp_<attemptId>`) and publishes `PaymentSucceeded`.
+  - `SubmitCheckoutCommandHandler` converts the order snapshot from `USD` to `VND` (`1 USD = 25,400 VND`).
+  - `RoutingPaymentProviderClient` routes to `VnPayPaymentProviderClient`, which scales the VND amount by `100` per VNPay 2.1.0 spec, signs the parameters with HMAC-SHA512, records `vnp_<attemptId>`, and publishes `PaymentSucceeded`.
 
 #### 4. `decline` — `[Test] Declined Card (Insufficient Funds)`
-- **Flow**: `Pending` → `Reserving` → `Paying` → **`Cancelled`**
+- **Saga Path**: `Pending` → `Reserving` → `Paying` → **`Cancelled`**
 - **What happens**:
   - `MockPaymentProviderClient` immediately returns `PaymentProviderStatus.Failed` (`"Payment declined by provider: insufficient funds."`).
-  - `CollectPaymentConsumer` marks `PaymentAttempt` as `Failed` (`4`) and publishes `PaymentRejected`.
-  - `CheckoutStateMachine` transitions the order to **`Cancelled`**, publishes `ReleaseInventory` (returning held stock to `QuantityAvailable`), and emits `OrderCancelled`.
+  - `CollectPaymentConsumer` marks `[payment].[PaymentAttempts].[Status] = 4` (`Failed`) and publishes `PaymentRejected`.
+  - `CheckoutStateMachine` transitions to **`Cancelled`**, publishes `ReleaseInventory` (restoring `QuantityAvailable` and marking `[inventory].[Reservations].[Status] = 3` `Released`), and emits `OrderCancelled`.
 
 #### 5. `timeout` — `[Test] Provider Timeout -> Reconciles to Confirmed`
-- **Flow**: `Pending` → `Reserving` → `Paying` → **`PaymentUnknown`** *(pauses ~8s)* → `Committing` → `Shipping` → **`Confirmed`**
+- **Saga Path**: `Pending` → `Reserving` → `Paying` → **`PaymentUnknown`** *(pauses ~8s)* → `Committing` → `Shipping` → **`Confirmed`**
 - **What happens**:
-  - Simulates a gateway where the charge succeeded at the bank, but the HTTP response timed out.
-  - `CollectPaymentConsumer` sets `PaymentAttempt.Status = PaymentUnknown` (`3`) and publishes `PaymentPendingResolution`.
-  - `Order` enters **`PaymentUnknown`** and displays the amber `Timeout = Unknown, Not Failure` banner.
-  - Within ~8 seconds, `PaymentReconciliationWorker` (`Payment.Worker`) queries `GetStatusAsync`, discovers the charge succeeded (`mock_tx_<attemptId>`), marks the attempt `Succeeded`, and publishes `PaymentSucceeded`.
+  - Simulates a gateway where the charge succeeded at the bank, but the HTTP response timed out (`PaymentProviderStatus.Unknown`).
+  - `CollectPaymentConsumer` sets `[payment].[PaymentAttempts].[Status] = 3` (`PaymentUnknown`) and publishes `PaymentPendingResolution`.
+  - The UI displays the amber **`PaymentUnknown` (`Timeout = Unknown, Not Failure`)** banner while inventory remains safely held.
+  - Within ~8 seconds, `PaymentReconciliationWorker` (`Payment.Worker`) calls `GetStatusAsync`, discovers the charge succeeded (`mock_tx_<attemptId>`), marks the attempt `Succeeded` (`2`), and publishes `PaymentSucceeded`.
   - The Saga resumes automatically (`Committing` → `Shipping` → **`Confirmed`**).
 
 #### 6. `network_error` — `[Test] Network Error -> Reconciles to Cancelled`
-- **Flow**: `Pending` → `Reserving` → `Paying` → **`PaymentUnknown`** *(pauses ~8s)* → **`Cancelled`**
+- **Saga Path**: `Pending` → `Reserving` → `Paying` → **`PaymentUnknown`** *(pauses ~8s)* → **`Cancelled`**
 - **What happens**:
   - Simulates a connection drop where the request never reached the payment processor.
   - Initially enters **`PaymentUnknown`** (`Timeout = Unknown`).
-  - Within ~8 seconds, `PaymentReconciliationWorker` queries the provider, confirms the transaction failed (`Failed`), and publishes `PaymentRejected`.
-  - `CheckoutStateMachine` transitions the order from `PaymentUnknown` to **`Cancelled`** and releases the reserved inventory hold.
+  - Within ~8 seconds, `PaymentReconciliationWorker` queries the provider, confirms the transaction failed (`Failed`), updates `[payment].[PaymentAttempts].[Status] = 4`, and publishes `PaymentRejected`.
+  - `CheckoutStateMachine` transitions the order from `PaymentUnknown` to **`Cancelled`** and emits `ReleaseInventory` + `OrderCancelled`.
+
+### Post-Payment Shipping, Carrier Routing & Notification Lifecycle
+
+1. **Shipping Service (`Shipping.Worker` & `Shipping.Api` `:5006`, `ShopSphere_Shipping.[shipping]`)**:
+   - **Carrier Routing (`RoutingCarrierProviderClient`)**:
+     - **Vietnam (`Country = "VN"` or `"VIETNAM"`)**: Routes to **GHN Sandbox** (`GhnCarrierClient` → `https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create`).
+     - **International / US (`Country = "US"`, etc.)**: Routes to **Shippo Sandbox** (`ShippoCarrierClient` → `https://api.goshippo.com/transactions/`).
+     - **Fallback / Simulation (`MockCarrierProviderClient`)**: Used automatically when `CarrierSettings:FallbackToMockOnMissingCredentials = true` and sandbox tokens are empty, or when testing carrier failure hooks via postal code:
+       - `PostalCode = "00000-TIMEOUT"` → `CarrierLabelStatus.UnknownTimeout` → `Shipment.Status = 'ShipmentUnknown'` (stores `ExternalShipmentRequestId` without failing the order).
+       - `PostalCode = "00000-FAIL"` → `CarrierLabelStatus.Failed` → `Shipment.Status = 'Failed'` → emits `ShipmentFailed` → triggers Saga **`Refunding`** compensation!
+   - **Physical Fulfillment Milestones (`Shipping.Api` `:5006`)**:
+     - `POST /api/v1/shipments/{shipmentId}/handover`: Marks the shipment `HandedOver`, appends a `[shipping].[TrackingMilestones]` entry, and emits `ShipmentHandedOver` (consumed by `ShipmentHandedOverConsumer` in `Inventory.Worker` as an idempotent guarantee that stock is committed).
+     - `POST /api/v1/shipments/{shipmentId}/deliver`: Marks the shipment `Delivered`, records `DeliveredAtUtc`, and emits `ShipmentDelivered`.
+2. **Notification Service (`Notification.Worker` & `Notification.Api` `:5008`, `ShopSphere_Notification.[notification]`)**:
+   - `OrderNotificationConsumer` consumes `OrderConfirmed` (creates & sends both **`Email`** and **`Sms`** `[notification].[NotificationJobs]`) and `OrderCancelled` (creates & sends an **`Email`** `[notification].[NotificationJobs]`).
+   - Enforces idempotency via unique index `(OrderId, NotificationType, Channel)` and non-blocking error handling (notification failures are logged in `NotificationJobs.LastError` and retryable via `POST /api/v1/notifications/{id}/retry` without ever rolling back checkout).
 
 ---
 
@@ -280,45 +312,47 @@ In the Checkout modal (`PaymentSelectionForm`), you can select any of the **3 Sa
 
 | Saga Stage | UI Indicator | SQL Server Validation | RabbitMQ Validation (`:15672`) |
 |------------|-------------|-----------------------|--------------------------------|
-| **Cart Setup** | Cart drawer shows items & verified quote total | *(Stored in Redis, not SQL)* | *(No messages yet)* |
-| **Order Submitted (`Pending` → `Reserving`)** | Toast `Order Submitted`; Receipt / Tracker opens | `ShopSphere_Order.order.Orders`: `Status = 'Reserving'` (or `'Paying'`)<br>`ShopSphere_Order.order.CheckoutSagaStates`: `CurrentState = 'Reserving'` | `reserve-inventory` queue receives 1 message |
-| **Stock Reserved (`Paying`)** | Saga visualizer highlights `Paying` | `ShopSphereInventory.dbo.StockItems`: `QuantityAvailable` decreased, `QuantityHeld` increased<br>`ShopSphereInventory.dbo.StockReservations`: `Status = 1` (`Held`) | `collect-payment` queue receives 1 message |
-| **Payment Succeeded (`Committing` → `Shipping`)** | Saga advances toward fulfillment | `ShopSpherePayment.dbo.PaymentAttempts`: `Status = 2` (`Succeeded`), `ProviderTransactionId` populated | `commit-inventory` and `create-shipment` queues process 1 message each |
-| **Order Confirmed (`Confirmed`)** | Green `Order Confirmed` badge + Tracking Number (`SS-TRK-...` / `GHN...`) + Email Preview card | `ShopSphere_Order.order.Orders`: `Status = 'Confirmed'`, `TrackingNumber` set<br>`ShopSphereInventory.dbo.StockReservations`: `Status = 2` (`Committed`)<br>`ShopSphere_Shipping.shipping.Shipments`: `Status = 'LabelCreated'`<br>`ShopSphere_Notification.notification.NotificationJobs`: `Status = 'Sent'` | All queues show `0 Ready`, `0 Unacked`, and no `*_error` queues created |
+| **Cart Setup** | Cart drawer shows items & verified quote total | *(Stored in Redis `ShopSphereCart:cart:{customerId}`, not SQL)* | *(No messages yet)* |
+| **Order Submitted (`Pending` → `Reserving`)** | Toast `Order Submitted`; Receipt / Tracker opens | `ShopSphereOrders.[order].[Orders]`: `Status = 'Reserving'`<br>`ShopSphereOrders.[order].[CheckoutSagaStates]`: `CurrentState = 'Reserving'` | `reserve-inventory` queue processes `ReserveInventory` |
+| **Stock Reserved (`Paying`)** | Saga visualizer highlights `Paying` | `ShopSphereInventory.[inventory].[StockItems]`: `QuantityAvailable` decreased, `QuantityHeld` increased<br>`ShopSphereInventory.[inventory].[Reservations]`: `Status = 1` (`Held`) | `collect-payment` queue processes `CollectPayment` |
+| **Payment Succeeded (`Committing` → `Shipping`)** | Saga advances toward fulfillment | `ShopSpherePayment.[payment].[PaymentAttempts]`: `Status = 2` (`Succeeded`), `ProviderTransactionId` populated | `commit-inventory` and `create-shipment` queues process 1 message each |
+| **Order Confirmed (`Confirmed`)** | Green `Order Confirmed` badge + Tracking Number (`SS-TRK-...` / `GHN...`) + Email Preview card | `ShopSphereOrders.[order].[Orders]`: `Status = 'Confirmed'`, `TrackingNumber` set<br>`ShopSphereInventory.[inventory].[Reservations]`: `Status = 2` (`Committed`), `QuantityCommitted` increased<br>`ShopSphere_Shipping.[shipping].[Shipments]`: `Status = 'LabelCreated'`<br>`ShopSphere_Notification.[notification].[NotificationJobs]`: `Status = 'Sent'` (`Email` + `Sms`) | All queues show `0 Ready`, `0 Unacked`, and no `*_error` queues created |
 
 #### 2. Validating Each Payment Scenario
 
-| Scenario | How to Trigger in UI | Expected Intermediate State | Expected Final State | Key Database Verification (`ShopSpherePayment` & `ShopSphereInventory`) |
-|----------|----------------------|-----------------------------|----------------------|-------------------------------------------------------------------------|
-| **1. Stripe / Mock Card (`credit_card`)** | Select **Credit or Debit Card** → Place Order | `Reserving` → `Paying` | **`Confirmed`** (`USD`) | `PaymentAttempts.Status = 2` (`Succeeded`), `StockReservations.Status = 2` (`Committed`) |
+| Scenario | How to Trigger in UI | Expected Intermediate State | Expected Final State | Key Database Verification (`ShopSphereOrders`, `ShopSpherePayment`, `ShopSphereInventory`) |
+|----------|----------------------|-----------------------------|----------------------|--------------------------------------------------------------------------------------------|
+| **1. Stripe / Mock Card (`credit_card`)** | Select **Credit or Debit Card** → Place Order | `Reserving` → `Paying` | **`Confirmed`** (`USD`) | `PaymentAttempts.Status = 2` (`Succeeded`), `Reservations.Status = 2` (`Committed`) |
 | **2. MoMo / VNPay (`digital_wallet` / `bank_transfer`)** | Select **MoMo E-Wallet** or **VNPay** → Place Order | `Reserving` → `Paying` (`FX: 1 USD = 25,400 VND`) | **`Confirmed`** (`VND`) | `Orders.Currency = 'VND'`, `Orders.TotalAmount = USD * 25400`, `PaymentAttempts.Currency = 'VND'` |
-| **3. Declined (`decline`)** | Select **`[Test] Declined Card`** → Place Order | `Reserving` → `Paying` | **`Cancelled`** (Immediate) | `PaymentAttempts.Status = 4` (`Failed`), `StockReservations.Status = 3` (`Released`), `QuantityHeld = 0` |
-| **4. Timeout (`timeout`)** | Select **`[Test] Provider Timeout`** → Place Order | **`PaymentUnknown`** (Amber banner for ~8s) | **`Confirmed`** (Auto-reconciles in ~8s) | Initially `PaymentAttempts.Status = 3` (`PaymentUnknown`); after `PaymentReconciliationWorker` sweep → `Status = 2` (`Succeeded`) & `StockReservations.Status = 2` (`Committed`) |
-| **5. Network Error (`network_error`)** | Select **`[Test] Network Error`** → Place Order | **`PaymentUnknown`** (Amber banner for ~8s) | **`Cancelled`** (Auto-reconciles in ~8s) | Initially `PaymentAttempts.Status = 3` (`PaymentUnknown`); after `PaymentReconciliationWorker` sweep → `Status = 4` (`Failed`) & `StockReservations.Status = 3` (`Released`) |
+| **3. Declined (`decline`)** | Select **`[Test] Declined Card`** → Place Order | `Reserving` → `Paying` | **`Cancelled`** (Immediate) | `PaymentAttempts.Status = 4` (`Failed`), `Reservations.Status = 3` (`Released`), `QuantityHeld = 0` |
+| **4. Timeout (`timeout`)** | Select **`[Test] Provider Timeout`** → Place Order | **`PaymentUnknown`** (Amber banner for ~8s) | **`Confirmed`** (Auto-reconciles in ~8s) | Initially `PaymentAttempts.Status = 3` (`PaymentUnknown`); after `PaymentReconciliationWorker` sweep → `Status = 2` (`Succeeded`) & `Reservations.Status = 2` (`Committed`) |
+| **5. Network Error (`network_error`)** | Select **`[Test] Network Error`** → Place Order | **`PaymentUnknown`** (Amber banner for ~8s) | **`Cancelled`** (Auto-reconciles in ~8s) | Initially `PaymentAttempts.Status = 3` (`PaymentUnknown`); after `PaymentReconciliationWorker` sweep → `Status = 4` (`Failed`) & `Reservations.Status = 3` (`Released`) |
+| **6. Carrier Failure Refund (`00000-FAIL`)** | Enter Postal Code `00000-FAIL` with Card → Place Order | `Reserving` → `Paying` → `Committing` → `Shipping` → **`Refunding`** | **`Cancelled`** (Refunded) | `Shipments.Status = 'Failed'`, `PaymentAttempts.Status = 5` (`Refunded`), `Orders.Status = 'Cancelled'` |
 
 #### 3. Quick SQL & Redis Inspection Commands
 
 Run these commands in PowerShell at any point during or after checkout to inspect live state across all databases:
 
 ```powershell
-# 1. Inspect latest Orders & Saga State (ShopSphere_Order)
-docker exec shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "DevPassword123!" -d ShopSphere_Order -Q "SELECT TOP 5 Id, Status, PaymentMethod, TotalAmount, Currency, PaymentAttemptId, TrackingNumber, FailureReason FROM [order].[Orders] ORDER BY CreatedAtUtc DESC;" -W
+# 1. Inspect latest Orders & Saga State (ShopSphereOrders)
+docker exec shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "DevPassword123!" -d ShopSphereOrders -Q "SELECT TOP 5 Id, Status, PaymentMethod, TotalAmount, Currency, PaymentAttemptId, TrackingNumber, FailureReason FROM [order].[Orders] ORDER BY CreatedAtUtc DESC; SELECT TOP 5 CorrelationId, CurrentState, PaymentMethod, TotalAmount, Currency, TrackingNumber, FailureReason FROM [order].[CheckoutSagaStates] ORDER BY CreatedAtUtc DESC;" -W
 
 # 2. Inspect Stock Levels & Reservations (ShopSphereInventory)
-docker exec shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "DevPassword123!" -d ShopSphereInventory -Q "SELECT Sku, QuantityAvailable, QuantityHeld FROM StockItems; SELECT TOP 5 OrderId, Sku, Quantity, Status, ExpiresAtUtc FROM StockReservations ORDER BY CreatedAtUtc DESC;" -W
+# Reservation Status enum: 1 = Held, 2 = Committed, 3 = Released, 4 = Expired
+docker exec shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "DevPassword123!" -d ShopSphereInventory -Q "SELECT Sku, QuantityAvailable, QuantityHeld, QuantityCommitted FROM [inventory].[StockItems]; SELECT TOP 5 OrderId, Sku, Quantity, Status, ExpiresAtUtc FROM [inventory].[Reservations] ORDER BY CreatedAtUtc DESC;" -W
 
 # 3. Inspect Payment Attempts (ShopSpherePayment)
-# Status enum: 1 = Pending, 2 = Succeeded, 3 = PaymentUnknown, 4 = Failed, 5 = Refunded
-docker exec shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "DevPassword123!" -d ShopSpherePayment -Q "SELECT TOP 5 Id, OrderId, PaymentMethod, Amount, Currency, Status, ProviderTransactionId, FailureReason FROM PaymentAttempts ORDER BY CreatedAtUtc DESC;" -W
+# Payment Status enum: 1 = Pending, 2 = Succeeded, 3 = PaymentUnknown, 4 = Failed, 5 = Refunded
+docker exec shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "DevPassword123!" -d ShopSpherePayment -Q "SELECT TOP 5 Id, OrderId, PaymentMethod, Amount, Currency, Status, ProviderTransactionId, FailureReason FROM [payment].[PaymentAttempts] ORDER BY CreatedAtUtc DESC;" -W
 
-# 4. Inspect Shipments (ShopSphere_Shipping)
-docker exec shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "DevPassword123!" -d ShopSphere_Shipping -Q "SELECT TOP 5 Id, OrderId, Status, TrackingNumber, ExternalShipmentRequestId FROM [shipping].[Shipments] ORDER BY CreatedAtUtc DESC;" -W
+# 4. Inspect Shipments & Milestones (ShopSphere_Shipping)
+docker exec shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "DevPassword123!" -d ShopSphere_Shipping -Q "SELECT TOP 5 Id, OrderId, Carrier, Status, TrackingNumber, ExternalShipmentRequestId, FailureReason FROM [shipping].[Shipments] ORDER BY CreatedAtUtc DESC;" -W
 
 # 5. Inspect Notification Dispatches (ShopSphere_Notification)
-docker exec shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "DevPassword123!" -d ShopSphere_Notification -Q "SELECT TOP 5 Id, OrderId, NotificationType, Channel, Status, Recipient FROM [notification].[NotificationJobs] ORDER BY CreatedAtUtc DESC;" -W
+docker exec shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "DevPassword123!" -d ShopSphere_Notification -Q "SELECT TOP 5 Id, OrderId, NotificationType, Channel, Status, Recipient, ProviderReferenceId FROM [notification].[NotificationJobs] ORDER BY CreatedAtUtc DESC;" -W
 
-# 6. Inspect Redis Cart Keys
-docker exec shopsphere-redis redis-cli KEYS "ShopSphere_Cart:*"
+# 6. Inspect Redis Cart & Catalog Cache Keys
+docker exec shopsphere-redis redis-cli KEYS "*"
 ```
 
 ---
