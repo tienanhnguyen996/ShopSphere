@@ -1,15 +1,18 @@
 name: Deploy ShopSphere to GCP Dev
 
 on:
-  push:
-    branches:
-      - main
-      - feat/gcp-dev-deployment
-    paths:
-      - 'src/**'
-      - 'deploy/**'
-      - '.github/workflows/deploy-gcp.yml'
   workflow_dispatch:
+    inputs:
+      apply_terraform:
+        description: 'Run Terraform Apply (provisions or updates Cloud SQL, Redis, Cloud Run, etc.)'
+        required: true
+        type: boolean
+        default: true
+      deploy_containers:
+        description: 'Build & deploy all microservice containers, gateway, and Web SPA'
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   id-token: write
@@ -54,8 +57,8 @@ jobs:
         run: |
           dotnet test --filter "Category!=Integration" --configuration Release
 
-  terraform-plan:
-    name: Terraform Plan & Validate
+  terraform-plan-apply:
+    name: Terraform Plan & Apply
     needs: validate
     runs-on: ubuntu-latest
     if: env.PROJECT_ID != ''
@@ -84,11 +87,17 @@ jobs:
           terraform validate
           terraform plan -var="project_id=${{ env.PROJECT_ID }}" -out=tfplan
 
+      - name: Terraform Apply
+        if: github.event.inputs.apply_terraform == 'true' || github.event.inputs.apply_terraform == true
+        working-directory: deploy/terraform/gcp/environments/dev
+        run: |
+          terraform apply -auto-approve tfplan
+
   build-and-deploy:
     name: Build Containers & Deploy to Cloud Run
-    needs: terraform-plan
+    needs: terraform-plan-apply
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && env.PROJECT_ID != ''
+    if: (github.event.inputs.deploy_containers == 'true' || github.event.inputs.deploy_containers == true) && env.PROJECT_ID != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -112,6 +121,52 @@ jobs:
           docker build -t "$IMAGE" -t "$LATEST" -f deploy/docker/Dockerfile.gateway .
           docker push "$IMAGE"
           docker push "$LATEST"
+
+      - name: Build & Push Microservices
+        run: |
+          declare -A services=(
+            ["catalog"]="src/Services/Catalog:src/Services/Catalog/Catalog.Api/Catalog.Api.csproj:Catalog.Api.dll"
+            ["cart"]="src/Services/Cart:src/Services/Cart/Cart.Api/Cart.Api.csproj:Cart.Api.dll"
+            ["identity"]="src/Services/Identity:src/Services/Identity/Identity.Api/Identity.Api.csproj:Identity.Api.dll"
+            ["inventory"]="src/Services/Inventory:src/Services/Inventory/Inventory.Api/Inventory.Api.csproj:Inventory.Api.dll"
+            ["payment"]="src/Services/Payment:src/Services/Payment/Payment.Api/Payment.Api.csproj:Payment.Api.dll"
+            ["order"]="src/Services/Order:src/Services/Order/Order.Api/Order.Api.csproj:Order.Api.dll"
+            ["shipping"]="src/Services/Shipping:src/Services/Shipping/Shipping.Api/Shipping.Api.csproj:Shipping.Api.dll"
+            ["notification"]="src/Services/Notification:src/Services/Notification/Notification.Api/Notification.Api.csproj:Notification.Api.dll"
+          )
+          for svc in "${!services[@]}"; do
+            IFS=':' read -r dir proj dll <<< "${services[$svc]}"
+            echo "Building $svc container..."
+            IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${svc}:${{ github.sha }}"
+            LATEST="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${svc}:latest"
+            docker build \
+              --build-arg SERVICE_DIR="${dir}" \
+              --build-arg PROJECT_PATH="${proj}" \
+              --build-arg DLL_NAME="${dll}" \
+              -t "$IMAGE" -t "$LATEST" -f deploy/docker/Dockerfile.service .
+            docker push "$IMAGE"
+            docker push "$LATEST"
+          done
+
+      - name: Update Cloud Run Services
+        run: |
+          for svc in gateway catalog cart identity inventory payment order shipping notification; do
+            echo "Updating Cloud Run service $svc..."
+            gcloud run deploy "$svc" \
+              --image="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${svc}:${{ github.sha }}" \
+              --region="${{ env.REGION }}" \
+              --quiet || true
+          done
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 12
 
       - name: Build & Deploy Frontend Web SPA
         run: |

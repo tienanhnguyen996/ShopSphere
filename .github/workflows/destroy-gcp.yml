@@ -1,0 +1,51 @@
+name: Destroy ShopSphere GCP Dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type "DESTROY-ALL" to permanently delete all GCP dev infrastructure and resources'
+        required: true
+        type: string
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+  WIF_SERVICE_ACCOUNT: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
+  TF_STATE_BUCKET: ${{ secrets.GCP_TF_STATE_BUCKET }}
+
+jobs:
+  destroy:
+    name: Terraform Destroy Dev Infrastructure
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirmation == 'DESTROY-ALL' && env.PROJECT_ID != ''
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via Workload Identity
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.5
+
+      - name: Terraform Init
+        working-directory: deploy/terraform/gcp/environments/dev
+        run: |
+          terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}"
+
+      - name: Terraform Destroy
+        working-directory: deploy/terraform/gcp/environments/dev
+        run: |
+          terraform destroy -var="project_id=${{ env.PROJECT_ID }}" -auto-approve
