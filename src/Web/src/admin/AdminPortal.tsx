@@ -53,6 +53,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   >('saga');
   const [shipment, setShipment] = useState<ShipmentDto | null>(null);
   const [notifications, setNotifications] = useState<NotificationJobDto[]>([]);
+  const [recentOrders, setRecentOrders] = useState<OrderDto[]>([]);
   const [adjustSku, setAdjustSku] = useState<string>(products[0]?.sku ?? 'KB-ERG-01');
   const [adjustQty, setAdjustQty] = useState<number>(5);
   const [isAdjustingStock, setIsAdjustingStock] = useState<boolean>(false);
@@ -100,71 +101,105 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     [isDemoOrder]
   );
 
-  const syncOrderArtifacts = useCallback(async () => {
-    if (!order.id || isDemoOrder) {
-      return;
-    }
+  const buildFallbackNotifications = useCallback((targetOrder: OrderDto): NotificationJobDto[] => {
+    const state = normalizeOrderState(targetOrder.status ?? undefined);
+    const now = new Date().toISOString();
+    return [
+      {
+        id: `demo-notif-${targetOrder.id ?? '1'}`,
+        orderId: targetOrder.id,
+        customerId: targetOrder.customerId,
+        notificationType: state === 'Confirmed' ? 'OrderConfirmed' : 'OrderCancelled',
+        channel: 'Email',
+        recipient: `${targetOrder.customerId ?? 'alex.rivera'}@customers.shopsphere.local`,
+        subject:
+          state === 'Confirmed'
+            ? `Order ${targetOrder.id ?? ''} Confirmed — Ready for Carrier Handover`
+            : `Order ${targetOrder.id ?? ''} Cancelled & Refund Initiated`,
+        body:
+          state === 'Confirmed'
+            ? `Hello ${targetOrder.shippingAddress?.recipientName ?? 'Customer'},\nYour order (${formatCurrencyAmount(targetOrder.totalAmount ?? 0, targetOrder.currency, false)}) has been confirmed. Tracking number: ${targetOrder.trackingNumber ?? 'SS-TRK-ACTIVE'}.`
+            : `Hello ${targetOrder.shippingAddress?.recipientName ?? 'Customer'},\nYour order (${targetOrder.id ?? ''}) was cancelled and any reserved stock or payment has been compensated.`,
+        status: 'Sent',
+        retryCount: 0,
+        createdAtUtc: now,
+        sentAtUtc: now,
+      },
+    ];
+  }, []);
 
+  const syncOrderArtifacts = useCallback(async () => {
     setIsSyncingArtifacts(true);
     try {
-      const latestOrder = await OrdersService.getOrderById({ id: order.id });
-      onOrderUpdated(latestOrder);
+      let targetOrder: OrderDto = order;
 
       try {
-        const latestShipment = await ShipmentsService.getShipmentByOrderId({ orderId: order.id });
+        const paged = await OrdersService.getOrders({ page: 1, pageSize: 20 });
+        const list = paged.items ?? [];
+        setRecentOrders(list);
+        if ((!targetOrder.id || targetOrder.id.startsWith('demo-')) && list.length > 0 && list[0]) {
+          targetOrder = list[0];
+          onOrderUpdated(targetOrder);
+        }
+      } catch {
+        // Keep current order if OrderService list fails
+      }
+
+      const targetOrderId =
+        targetOrder.id && !targetOrder.id.startsWith('demo-')
+          ? targetOrder.id
+          : '00000000-0000-0000-0000-000000009042';
+
+      try {
+        const latestOrder = await OrdersService.getOrderById({ id: targetOrderId });
+        targetOrder = latestOrder;
+        onOrderUpdated(latestOrder);
+      } catch {
+        // Keep current order snapshot if demo ID is not in DB
+      }
+
+      try {
+        const latestShipment = await ShipmentsService.getShipmentByOrderId({
+          orderId: targetOrderId,
+        });
         setShipment(latestShipment);
       } catch {
-        // Shipment may not exist yet until OrderConfirmed
+        if (normalizeOrderState(targetOrder.status ?? undefined) === 'Confirmed') {
+          setShipment((prev) => prev ?? buildFallbackShipment(targetOrder));
+        }
       }
 
       try {
-        const jobs = await NotificationsService.getNotificationsByOrderId({ orderId: order.id });
-        setNotifications(jobs);
+        const jobs = await NotificationsService.getNotificationsByOrderId({
+          orderId: targetOrderId,
+        });
+        if (jobs.length > 0) {
+          setNotifications(jobs);
+        } else {
+          const st = normalizeOrderState(targetOrder.status ?? undefined);
+          if (st === 'Confirmed' || st === 'Cancelled') {
+            setNotifications((prev) =>
+              prev.length > 0 ? prev : buildFallbackNotifications(targetOrder)
+            );
+          }
+        }
       } catch {
-        // Notifications may not exist yet
+        const st = normalizeOrderState(targetOrder.status ?? undefined);
+        if (st === 'Confirmed' || st === 'Cancelled') {
+          setNotifications((prev) =>
+            prev.length > 0 ? prev : buildFallbackNotifications(targetOrder)
+          );
+        }
       }
-    } catch {
-      // Keep local snapshot if gateway is unreachable
     } finally {
       setIsSyncingArtifacts(false);
     }
-  }, [isDemoOrder, onOrderUpdated, order.id]);
+  }, [buildFallbackNotifications, buildFallbackShipment, onOrderUpdated, order]);
 
   useEffect(() => {
     void syncOrderArtifacts();
-  }, [syncOrderArtifacts, orderState]);
-
-  useEffect(() => {
-    if (orderState === 'Confirmed' && !shipment) {
-      setShipment(buildFallbackShipment(order));
-    }
-
-    if ((orderState === 'Confirmed' || orderState === 'Cancelled') && notifications.length === 0) {
-      const now = new Date().toISOString();
-      setNotifications([
-        {
-          id: `demo-notif-${order.id ?? '1'}`,
-          orderId: order.id,
-          customerId: order.customerId,
-          notificationType: orderState === 'Confirmed' ? 'OrderConfirmed' : 'OrderCancelled',
-          channel: 'Email',
-          recipient: `${order.customerId ?? 'alex.rivera'}@customers.shopsphere.local`,
-          subject:
-            orderState === 'Confirmed'
-              ? `Order ${order.id ?? ''} Confirmed — Ready for Carrier Handover`
-              : `Order ${order.id ?? ''} Cancelled & Refund Initiated`,
-          body:
-            orderState === 'Confirmed'
-              ? `Hello ${order.shippingAddress?.recipientName ?? 'Customer'},\nYour order (${formatCurrencyAmount(order.totalAmount ?? 0, order.currency, false)}) has been confirmed. Tracking number: ${order.trackingNumber ?? 'SS-TRK-ACTIVE'}.`
-              : `Hello ${order.shippingAddress?.recipientName ?? 'Customer'},\nYour order (${order.id ?? ''}) was cancelled and any reserved stock or payment has been compensated.`,
-          status: 'Sent',
-          retryCount: 0,
-          createdAtUtc: now,
-          sentAtUtc: now,
-        },
-      ]);
-    }
-  }, [buildFallbackShipment, notifications.length, order, orderState, shipment]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.id, orderState]);
 
   const handleProvisionShipmentLabel = () => {
     const generated = buildFallbackShipment(order);
@@ -350,7 +385,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
         <div className="flex items-center space-x-2 text-xs text-slate-400 font-mono">
           <span>Active Order:</span>
-          <span className="text-white font-bold">{order.id ?? 'None'}</span>
+          {recentOrders.length > 0 ? (
+            <select
+              value={order.id ?? ''}
+              onChange={(e) => {
+                const selected = recentOrders.find((o) => o.id === e.target.value);
+                if (selected) {
+                  setShipment(null);
+                  setNotifications([]);
+                  onOrderUpdated(selected);
+                }
+              }}
+              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+            >
+              {recentOrders.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {(o.id ?? '').slice(0, 8)}... ({o.status} -{' '}
+                  {formatCurrencyAmount(o.totalAmount ?? 0, o.currency, false)})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-white font-bold">{order.id ?? 'None'}</span>
+          )}
         </div>
       </div>
 
@@ -392,7 +449,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onRefreshCatalog()}
+                  isLoading={isSyncingArtifacts}
+                  onClick={() => {
+                    onRefreshCatalog();
+                    void syncOrderArtifacts();
+                  }}
                   className="border-slate-600 text-slate-300 hover:bg-slate-700"
                 >
                   <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
