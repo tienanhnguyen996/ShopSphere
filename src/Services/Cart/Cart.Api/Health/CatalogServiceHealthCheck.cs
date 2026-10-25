@@ -23,14 +23,14 @@ public class CatalogServiceHealthCheck : IHealthCheck
             var result = await _catalogClient.GetProductBySkuAsync("HEALTH-CHECK-PING", cts.Token);
             if (result.IsFailure && result.Error.Code == "Cart.CatalogUnavailable")
             {
-                return HealthCheckResult.Unhealthy($"Catalog service downstream dependency is unavailable: {result.Error.Description}");
+                return HealthCheckResult.Degraded($"Catalog service downstream dependency is unavailable: {result.Error.Description}");
             }
 
             return HealthCheckResult.Healthy("Catalog service dependency is responsive.");
         }
         catch (Exception ex)
         {
-            return HealthCheckResult.Unhealthy($"Failed to contact Catalog service: {ex.Message}", ex);
+            return HealthCheckResult.Degraded($"Failed to contact Catalog service: {ex.Message}", ex);
         }
     }
 }

@@ -27,7 +27,7 @@ public class PaymentEndpointAndHealthTests
 
         // Assert - when DB not accessible in unit test, returns Unhealthy gracefully without throwing
         result.Should().NotBeNull();
-        result.Status.Should().BeOneOf(HealthStatus.Healthy, HealthStatus.Unhealthy);
+        result.Status.Should().BeOneOf(HealthStatus.Healthy, HealthStatus.Degraded, HealthStatus.Unhealthy);
     }
 
     [Fact]

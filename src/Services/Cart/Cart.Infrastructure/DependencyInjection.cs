@@ -15,7 +15,9 @@ public static class DependencyInjection
         {
             services.AddStackExchangeRedisCache(options =>
             {
-                options.Configuration = redisConnection;
+                var configOptions = StackExchange.Redis.ConfigurationOptions.Parse(redisConnection);
+                configOptions.CertificateValidation += (sender, cert, chain, errors) => true;
+                options.ConfigurationOptions = configOptions;
                 options.InstanceName = "ShopSphere_";
             });
         }

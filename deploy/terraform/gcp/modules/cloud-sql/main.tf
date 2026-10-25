@@ -5,14 +5,14 @@ resource "random_id" "db_suffix" {
 resource "random_password" "root_password" {
   length           = 24
   special          = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"
+  override_special = "!#%*_-~"
 }
 
 resource "random_password" "service_passwords" {
   for_each         = var.services
   length           = 24
   special          = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"
+  override_special = "!#%*_-~"
 }
 
 resource "google_sql_database_instance" "instance" {

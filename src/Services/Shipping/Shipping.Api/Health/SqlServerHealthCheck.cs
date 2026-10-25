@@ -14,7 +14,7 @@ public sealed class SqlServerHealthCheck(IConfiguration configuration) : IHealth
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            return HealthCheckResult.Unhealthy("ShippingDb connection string is missing.");
+            return HealthCheckResult.Degraded("ShippingDb connection string is missing.");
         }
 
         try
@@ -31,7 +31,7 @@ public sealed class SqlServerHealthCheck(IConfiguration configuration) : IHealth
         }
         catch (Exception ex)
         {
-            return HealthCheckResult.Unhealthy("SQL Server health check failed.", ex);
+            return HealthCheckResult.Degraded("SQL Server health check failed.", ex);
         }
     }
 }

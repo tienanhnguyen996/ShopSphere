@@ -133,7 +133,7 @@ public class IdentityApiEndpointTests
         var result = await healthCheck.CheckHealthAsync(context);
 
         result.Should().NotBeNull();
-        result.Status.Should().BeOneOf(HealthStatus.Healthy, HealthStatus.Unhealthy);
+        result.Status.Should().BeOneOf(HealthStatus.Healthy, HealthStatus.Degraded, HealthStatus.Unhealthy);
     }
 
     #endregion

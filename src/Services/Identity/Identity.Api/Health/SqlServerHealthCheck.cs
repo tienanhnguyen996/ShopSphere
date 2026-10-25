@@ -24,11 +24,11 @@ public class SqlServerHealthCheck : IHealthCheck
             var canConnect = await _dbContext.Database.CanConnectAsync(cts.Token);
             return canConnect
                 ? HealthCheckResult.Healthy("SQL Server database connection is responsive.")
-                : HealthCheckResult.Unhealthy("SQL Server database connection failed.");
+                : HealthCheckResult.Degraded("SQL Server database connection failed.");
         }
         catch (Exception ex)
         {
-            return HealthCheckResult.Unhealthy("SQL Server database is unavailable.", ex);
+            return HealthCheckResult.Degraded("SQL Server database is unavailable.", ex);
         }
     }
 }

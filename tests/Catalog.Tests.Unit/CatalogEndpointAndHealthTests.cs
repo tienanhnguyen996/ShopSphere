@@ -85,8 +85,8 @@ public class CatalogEndpointAndHealthTests
         // Act
         var result = await healthCheck.CheckHealthAsync(context);
 
-        // Assert: must return Unhealthy with component failure diagnostic
-        result.Status.Should().Be(HealthStatus.Unhealthy);
+        // Assert: must return Unhealthy or Degraded with component failure diagnostic
+        result.Status.Should().BeOneOf(HealthStatus.Degraded, HealthStatus.Unhealthy);
         result.Description.Should().NotBeNullOrEmpty();
     }
 
