@@ -25,6 +25,7 @@ public class InventoryDbContext : DbContext, IInventoryDbContext
         {
             builder.ToTable("StockItems");
             builder.HasKey(s => s.Id);
+            builder.Property(s => s.Id).ValueGeneratedNever();
 
             builder.Property(s => s.Sku)
                 .HasMaxLength(50)
@@ -55,12 +56,16 @@ public class InventoryDbContext : DbContext, IInventoryDbContext
                 .WithOne(r => r.StockItem)
                 .HasForeignKey(r => r.StockItemId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Navigation(s => s.Reservations)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
         });
 
         modelBuilder.Entity<StockReservation>(builder =>
         {
             builder.ToTable("Reservations");
             builder.HasKey(r => r.Id);
+            builder.Property(r => r.Id).ValueGeneratedNever();
 
             builder.Property(r => r.StockItemId)
                 .IsRequired();

@@ -3,12 +3,17 @@ export {
   configureApiClients,
   getCorrelationId,
   setCorrelationId,
+  getCustomerId,
+  setCustomerId,
   getAuthToken,
   setAuthToken,
   catalogOpenAPI,
   cartOpenAPI,
   inventoryOpenAPI,
   paymentOpenAPI,
+  orderOpenAPI,
+  shippingOpenAPI,
+  notificationOpenAPI,
   apiConfigs,
 } from './client';
 
@@ -44,3 +49,33 @@ export type { StockAdjustmentRequest, StockResponse } from './generated/inventor
 // Payment Service and DTOs
 export { PaymentService, PaymentService as paymentApi } from './generated/payment';
 export type { PaymentAttemptResponse, ProviderWebhookPayload } from './generated/payment';
+
+// Order Service and DTOs
+export { OrdersService, OrdersService as orderApi } from './generated/order';
+export type {
+  CancelOrderRequest,
+  CheckoutRequest,
+  OrderDto,
+  OrderItemDto,
+  PagedOrderResult,
+  ShippingAddressRequest,
+} from './generated/order';
+
+// Shipping Service and DTOs
+export { ShipmentsService, ShipmentsService as shippingApi } from './generated/shipping';
+export type {
+  CancelShipmentRequestDto,
+  RecordDeliveryRequestDto,
+  RecordHandoverRequestDto,
+  ShipmentAddressResponseDto,
+  ShipmentDto,
+  ShipmentItemResponseDto,
+  TrackingMilestoneResponseDto,
+} from './generated/shipping';
+
+// Notification Service and DTOs
+export {
+  NotificationsService,
+  NotificationsService as notificationApi,
+} from './generated/notification';
+export type { NotificationJobDto } from './generated/notification';

@@ -127,7 +127,8 @@ public class ReserveInventoryConsumer :
                 {
                     var normalizedSku = item.Sku.Trim().ToUpperInvariant();
                     var stockItem = stockItems.First(s => s.Sku == normalizedSku);
-                    stockItem.HoldStock(orderId, item.Quantity, ttl);
+                    var reservation = stockItem.HoldStock(orderId, item.Quantity, ttl);
+                    _dbContext.Reservations.Add(reservation);
                     reservedDtoList.Add(new ReservedItemDto(normalizedSku, item.Quantity));
                 }
 
