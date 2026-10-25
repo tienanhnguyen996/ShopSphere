@@ -83,10 +83,10 @@ resource "google_cloud_run_v2_service" "service" {
 
 # IAM bindings for invokers (e.g. Gateway SA)
 resource "google_cloud_run_v2_service_iam_member" "invokers" {
-  for_each = toset(var.invoker_members)
+  count    = length(var.invoker_members)
   project  = var.project_id
   location = var.region
   name     = google_cloud_run_v2_service.service.name
   role     = "roles/run.invoker"
-  member   = each.value
+  member   = var.invoker_members[count.index]
 }

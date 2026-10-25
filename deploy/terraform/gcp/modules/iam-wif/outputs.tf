@@ -4,16 +4,16 @@ output "wif_provider_name" {
 }
 
 output "cicd_service_account_email" {
-  value       = google_service_account.github_actions_sa.email
+  value       = "shopsphere-cicd-${var.environment}@${var.project_id}.iam.gserviceaccount.com"
   description = "Email of the GitHub Actions CI/CD service account."
 }
 
 output "gateway_service_account_email" {
-  value       = google_service_account.gateway_sa.email
+  value       = "shopsphere-gateway-${var.environment}@${var.project_id}.iam.gserviceaccount.com"
   description = "Email of the API Gateway Cloud Run service account."
 }
 
 output "services_service_account_email" {
-  value       = google_service_account.services_sa.email
+  value       = "shopsphere-services-${var.environment}@${var.project_id}.iam.gserviceaccount.com"
   description = "Email of the microservices Cloud Run service account."
 }

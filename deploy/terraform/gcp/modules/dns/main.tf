@@ -13,7 +13,6 @@ resource "google_dns_managed_zone" "private_zone" {
 }
 
 resource "google_dns_record_set" "rabbitmq" {
-  count        = var.rabbitmq_private_ip != "" ? 1 : 0
   name         = "rabbitmq.${google_dns_managed_zone.private_zone.dns_name}"
   managed_zone = google_dns_managed_zone.private_zone.name
   type         = "A"

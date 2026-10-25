@@ -84,9 +84,9 @@ module "rabbitmq" {
 
 # 8b. Automated Secret Versions (Populate generated connection strings into Secret Manager)
 resource "google_secret_manager_secret_version" "db_conn" {
-  for_each    = module.cloud_sql.connection_strings
-  secret      = module.secrets.db_secret_ids[each.key]
-  secret_data = each.value
+  for_each    = module.secrets.db_secret_ids
+  secret      = each.value
+  secret_data = module.cloud_sql.connection_strings[each.key]
 }
 
 resource "google_secret_manager_secret_version" "rabbitmq_conn" {
