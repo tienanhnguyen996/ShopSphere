@@ -137,9 +137,61 @@ export const CheckoutWizard: React.FC<CheckoutWizardProps> = ({
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
-            1. Shipping Destination
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+              1. Shipping Destination
+            </h3>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setRecipientName('Alex Rivera');
+                  setStreet('742 Evergreen Terrace, Suite 200');
+                  setCity('Austin');
+                  setState('TX');
+                  setPostalCode('78701');
+                  setCountry('US');
+                  setPhone('+1-512-555-0192');
+                }}
+                style={{
+                  fontSize: '11px',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: country === 'US' ? '#e0f2fe' : '#ffffff',
+                  color: country === 'US' ? '#0369a1' : '#475569',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Preset: US (Shippo)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRecipientName('Nguyen Van A');
+                  setStreet('123 Le Loi, Ben Nghe');
+                  setCity('Ho Chi Minh');
+                  setState('Quan 1');
+                  setPostalCode('70000');
+                  setCountry('VN');
+                  setPhone('0901234567');
+                }}
+                style={{
+                  fontSize: '11px',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: country === 'VN' ? '#fef3c7' : '#ffffff',
+                  color: country === 'VN' ? '#b45309' : '#475569',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Preset: VN (GHN)
+              </button>
+            </div>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <Input
               label="Recipient Name"

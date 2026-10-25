@@ -234,6 +234,18 @@ export const App: React.FC = () => {
         );
         setStockBySku(Object.fromEntries(stockEntries));
       }
+
+      const serverCart = await CartService.getCart();
+      if (!serverCart.items || serverCart.items.length === 0) {
+        const seededCart = await CartService.addItemToCart({
+          requestBody: { sku: 'KB-ERG-01', quantity: 1 },
+        });
+        setCart(seededCart);
+      } else {
+        setCart(serverCart);
+      }
+      const serverQuote = await CartService.getCartCheckoutQuote();
+      setQuote(serverQuote);
     } catch {
       // Gateway offline or running standalone UI demo: keep seeded catalog and stock
     } finally {
@@ -389,7 +401,16 @@ export const App: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-3">
-              <Button variant="outline" size="sm" onClick={() => setIsCheckoutOpen(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!cart.items || cart.items.length === 0) {
+                    await handleAddToCart(products[0] ?? SEEDED_PRODUCTS[0]);
+                  }
+                  setIsCheckoutOpen(true);
+                }}
+              >
                 Quick Checkout
               </Button>
               <Button variant="primary" size="sm" onClick={() => setIsCartOpen(true)}>
@@ -443,6 +464,9 @@ export const App: React.FC = () => {
           onOrderCreated={(createdOrder) => {
             setActiveOrder(createdOrder);
             setIsCheckoutOpen(false);
+            const emptyCart: CartDto = { customerId: 'cust-alex-01', items: [], totalQuantity: 0 };
+            setCart(emptyCart);
+            setQuote(buildQuoteFromCart(emptyCart, products));
             pushToast(
               'Order Submitted',
               `Order ${createdOrder.id ?? ''} entered the Checkout Saga.`,

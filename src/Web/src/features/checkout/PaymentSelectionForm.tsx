@@ -18,21 +18,21 @@ function getPaymentMethodDetails(method: PaymentMethodType): {
   switch (method) {
     case 'credit_card':
       return {
-        title: 'Credit or Debit Card',
-        subtitle: 'Instant authorization via Stripe / Adyen gateway with 3DS protection.',
-        badgeText: 'Instant',
+        title: 'Credit or Debit Card (Stripe)',
+        subtitle: 'Worldwide card processing via Stripe sandbox gateway.',
+        badgeText: 'Stripe',
       };
     case 'digital_wallet':
       return {
-        title: 'Apple Pay / Google Pay',
-        subtitle: 'Tokenized biometric wallet authorization.',
-        badgeText: 'One-Tap',
+        title: 'MoMo E-Wallet (Vietnam)',
+        subtitle: 'Direct MoMo Sandbox gateway & QR checkout.',
+        badgeText: 'MoMo',
       };
     case 'bank_transfer':
       return {
-        title: 'Instant Bank Transfer (ACH / SEPA)',
-        subtitle: 'Direct bank-to-bank settlement verified via Open Banking.',
-        badgeText: 'Zero Fee',
+        title: 'VNPay Banking / QR (Vietnam)',
+        subtitle: 'Direct settlement via VNPay Sandbox gateway.',
+        badgeText: 'VNPay',
       };
     default: {
       const _exhaustiveCheck: never = method;

@@ -54,6 +54,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHealthChecks("/health");
 app.MapNotificationApiEndpoints();
 
 app.Run();

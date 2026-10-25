@@ -14,5 +14,7 @@ public interface IOrderDbContext
     DbSet<IdempotencyRecord> IdempotencyRecords { get; }
     DbSet<OutboxMessage> OutboxMessages { get; }
 
+    void ClearChangeTracker();
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
