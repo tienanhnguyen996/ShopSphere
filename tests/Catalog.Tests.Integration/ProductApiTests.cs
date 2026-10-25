@@ -9,6 +9,7 @@ using ShopSphere.BuildingBlocks.Security;
 
 namespace ShopSphere.Services.Catalog.Tests.Integration;
 
+[Trait("Category", "Integration")]
 public class ProductApiTests : IClassFixture<CatalogWebApplicationFactory>
 {
     private readonly HttpClient _client;
