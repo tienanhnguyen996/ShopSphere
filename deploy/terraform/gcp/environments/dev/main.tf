@@ -103,33 +103,7 @@ resource "google_secret_manager_secret_version" "redis_auth" {
   depends_on  = [module.secrets]
 }
 
-# 9. Cloud Run Service: YARP API Gateway
-module "gateway" {
-  source                = "../../modules/cloud-run-service"
-  project_id            = var.project_id
-  region                = var.region
-  environment           = var.environment
-  service_name          = "gateway"
-  image                 = "${module.artifact_registry.repository_url}/gateway:latest"
-  service_account_email = module.iam_wif.gateway_service_account_email
-  ingress               = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
-  vpc_id                = module.networking.vpc_id
-  app_subnet_id         = module.networking.app_subnet_id
-  min_instance_count    = 1
-  cpu_idle              = false
-  cpu                   = "1"
-  memory                = "512Mi"
-
-  env_vars = {
-    ASPNETCORE_ENVIRONMENT = "Development"
-  }
-
-  depends_on = [
-    module.iam_wif,
-  ]
-}
-
-# 10. Cloud Run Services: Microservices Fleet
+# 9. Cloud Run Services: Microservices Fleet
 locals {
   microservices = {
     catalog = {
@@ -193,7 +167,8 @@ module "services" {
   memory                = each.value.memory
 
   invoker_members = [
-    "serviceAccount:${module.iam_wif.gateway_service_account_email}"
+    "serviceAccount:${module.iam_wif.gateway_service_account_email}",
+    "allUsers"
   ]
 
   secret_env_vars = merge(
@@ -223,6 +198,44 @@ module "services" {
     google_secret_manager_secret_version.db_conn,
     google_secret_manager_secret_version.rabbitmq_conn,
     google_secret_manager_secret_version.redis_auth,
+  ]
+}
+
+# 10. Cloud Run Service: YARP API Gateway
+module "gateway" {
+  source                = "../../modules/cloud-run-service"
+  project_id            = var.project_id
+  region                = var.region
+  environment           = var.environment
+  service_name          = "gateway"
+  image                 = "${module.artifact_registry.repository_url}/gateway:latest"
+  service_account_email = module.iam_wif.gateway_service_account_email
+  ingress               = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  vpc_id                = module.networking.vpc_id
+  app_subnet_id         = module.networking.app_subnet_id
+  min_instance_count    = 1
+  cpu_idle              = false
+  cpu                   = "1"
+  memory                = "512Mi"
+
+  invoker_members = [
+    "allUsers"
+  ]
+
+  env_vars = {
+    ASPNETCORE_ENVIRONMENT                                                                    = "Development"
+    ReverseProxy__Clusters__catalog-cluster__Destinations__catalog-service__Address           = module.services["catalog"].service_url
+    ReverseProxy__Clusters__cart-cluster__Destinations__cart-service__Address                 = module.services["cart"].service_url
+    ReverseProxy__Clusters__identity-cluster__Destinations__identity-service__Address         = module.services["identity"].service_url
+    ReverseProxy__Clusters__inventory-cluster__Destinations__inventory-service__Address       = module.services["inventory"].service_url
+    ReverseProxy__Clusters__payment-cluster__Destinations__payment-service__Address           = module.services["payment"].service_url
+    ReverseProxy__Clusters__order-cluster__Destinations__order-service__Address               = module.services["order"].service_url
+    ReverseProxy__Clusters__shipping-cluster__Destinations__shipping-service__Address         = module.services["shipping"].service_url
+    ReverseProxy__Clusters__notification-cluster__Destinations__notification-service__Address = module.services["notification"].service_url
+  }
+
+  depends_on = [
+    module.iam_wif,
   ]
 }
 
