@@ -168,7 +168,7 @@ module "services" {
   service_name          = each.key
   image                 = "${module.artifact_registry.repository_url}/${each.key}:${var.image_tag}"
   service_account_email = module.iam_wif.services_service_account_email
-  ingress               = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+  ingress               = "INGRESS_TRAFFIC_ALL"
   vpc_id                = module.networking.vpc_id
   app_subnet_id         = module.networking.app_subnet_id
   min_instance_count    = each.value.worker ? 1 : 0
