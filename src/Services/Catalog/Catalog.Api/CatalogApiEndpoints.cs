@@ -39,7 +39,7 @@ public static class CatalogApiEndpoints
                         })
                 };
 
-                var statusCode = report.Status == HealthStatus.Healthy
+                var statusCode = report.Status != HealthStatus.Unhealthy
                     ? StatusCodes.Status200OK
                     : StatusCodes.Status503ServiceUnavailable;
 

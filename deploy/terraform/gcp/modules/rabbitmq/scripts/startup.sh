@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euxo pipefail
 
 echo "=== Initializing RabbitMQ Installation on Ubuntu ==="
 
@@ -20,71 +20,51 @@ if [ -b "$DISK_DEVICE" ]; then
     fi
 fi
 
-# 2. Install prerequisites & RabbitMQ signing keys
+# 2. Install prerequisites & RabbitMQ from Ubuntu standard repositories
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
-apt-get install -y curl gnupg apt-transport-https ssl-cert openssl
+apt-get install -y rabbitmq-server ssl-cert openssl
 
-# Team RabbitMQ repository
-curl -1sLf "https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA" | gpg --dearmor > /usr/share/keyrings/com.rabbitmq.team.gpg
-curl -1sLf "https://github.com/rabbitmq/signing-keys/releases/download/3.0/cloudsmith.rabbitmq-erlang.E495BB49CC4BBE5B.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg
-curl -1sLf "https://github.com/rabbitmq/signing-keys/releases/download/3.0/cloudsmith.rabbitmq-server.9F4587F2262083E3.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq.9F4587F2262083E3.gpg
-
-DISTRO=$(lsb_release -cs)
-
-cat <<EOF > /etc/apt/sources.list.d/rabbitmq.list
-deb [signed-by=/usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg] https://ppa1.novemberain.com/rabbitmq/rabbitmq-erlang/ubuntu/ $DISTRO main
-deb-src [signed-by=/usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg] https://ppa1.novemberain.com/rabbitmq/rabbitmq-erlang/ubuntu/ $DISTRO main
-deb [signed-by=/usr/share/keyrings/rabbitmq.9F4587F2262083E3.gpg] https://ppa1.novemberain.com/rabbitmq/rabbitmq-server/ubuntu/ $DISTRO main
-deb-src [signed-by=/usr/share/keyrings/rabbitmq.9F4587F2262083E3.gpg] https://ppa1.novemberain.com/rabbitmq/rabbitmq-server/ubuntu/ $DISTRO main
-EOF
-
-apt-get update -y
-apt-get install -y erlang-base erlang-asn1 erlang-crypto erlang-eldap erlang-inets erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key erlang-ssl erlang-syntax-tools erlang-tools erlang-xmerl rabbitmq-server
-
-# 3. Generate self-signed TLS certificates for AMQPS
-CERT_DIR="/etc/rabbitmq/ssl"
-mkdir -p "$CERT_DIR"
-if [ ! -f "$CERT_DIR/server.key" ]; then
-    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-        -keyout "$CERT_DIR/server.key" \
-        -out "$CERT_DIR/server.crt" \
-        -subj "/CN=rabbitmq.shopsphere.internal"
-fi
-chown -R rabbitmq:rabbitmq "$CERT_DIR"
-chmod 600 "$CERT_DIR/server.key"
-
-# 4. RabbitMQ Configuration
+# 3. RabbitMQ Configuration
+mkdir -p /etc/rabbitmq
 cat <<EOF > /etc/rabbitmq/rabbitmq.conf
 listeners.tcp.default = 5672
-listeners.ssl.default = 5671
-ssl_options.cacertfile = $CERT_DIR/server.crt
-ssl_options.certfile   = $CERT_DIR/server.crt
-ssl_options.keyfile    = $CERT_DIR/server.key
-ssl_options.verify     = verify_none
-ssl_options.fail_if_no_peer_cert = false
 management.tcp.port = 15672
 EOF
 
-chown -R rabbitmq:rabbitmq "$MOUNT_DIR"
+chown -R rabbitmq:rabbitmq "$MOUNT_DIR" /etc/rabbitmq || true
+systemctl daemon-reload
 systemctl enable rabbitmq-server
 systemctl restart rabbitmq-server
 
-rabbitmq-plugins enable rabbitmq_management
+# Wait for rabbitmq-server to be active
+for i in {1..30}; do
+    if rabbitmqctl status >/dev/null 2>&1; then
+        echo "RabbitMQ server is responding."
+        break
+    fi
+    sleep 2
+done
 
-# 5. Provision Admin User & Service VHosts
-ADMIN_USER="shopsphere_admin"
+rabbitmq-plugins enable rabbitmq_management || true
+
+# 4. Provision Admin Users & Service VHosts
 ADMIN_PASS="${RABBITMQ_ADMIN_PASSWORD}"
 
-rabbitmqctl add_user "$ADMIN_USER" "$ADMIN_PASS" || rabbitmqctl change_password "$ADMIN_USER" "$ADMIN_PASS"
-rabbitmqctl set_user_tags "$ADMIN_USER" administrator
-rabbitmqctl set_permissions -p / "$ADMIN_USER" ".*" ".*" ".*"
+rabbitmqctl add_user "admin" "$ADMIN_PASS" || rabbitmqctl change_password "admin" "$ADMIN_PASS"
+rabbitmqctl set_user_tags "admin" administrator
+rabbitmqctl set_permissions -p / "admin" ".*" ".*" ".*"
+
+rabbitmqctl add_user "shopsphere_admin" "$ADMIN_PASS" || rabbitmqctl change_password "shopsphere_admin" "$ADMIN_PASS"
+rabbitmqctl set_user_tags "shopsphere_admin" administrator
+rabbitmqctl set_permissions -p / "shopsphere_admin" ".*" ".*" ".*"
+
 rabbitmqctl delete_user guest || true
 
-# Provision per-service vhosts and users
 for VHOST in orders inventory notifications catalog payment shipping; do
     rabbitmqctl add_vhost "/$VHOST" || true
-    rabbitmqctl set_permissions -p "/$VHOST" "$ADMIN_USER" ".*" ".*" ".*"
+    rabbitmqctl set_permissions -p "/$VHOST" "admin" ".*" ".*" ".*"
+    rabbitmqctl set_permissions -p "/$VHOST" "shopsphere_admin" ".*" ".*" ".*"
 done
 
 echo "=== RabbitMQ Initialization Complete ==="

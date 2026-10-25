@@ -11,6 +11,9 @@ public sealed class RabbitMqHealthCheck(IConfiguration configuration) : IHealthC
     {
         try
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(3));
+
             var factory = new ConnectionFactory
             {
                 HostName = configuration["RabbitMQ:Host"] ?? "localhost",
@@ -19,14 +22,14 @@ public sealed class RabbitMqHealthCheck(IConfiguration configuration) : IHealthC
                 Password = configuration["RabbitMQ:Password"] ?? "guest"
             };
 
-            await using var connection = await factory.CreateConnectionAsync(cancellationToken);
+            await using var connection = await factory.CreateConnectionAsync(cts.Token);
             return connection.IsOpen
                 ? HealthCheckResult.Healthy("RabbitMQ is reachable.")
-                : HealthCheckResult.Unhealthy("RabbitMQ connection is closed.");
+                : HealthCheckResult.Degraded("RabbitMQ connection is closed.");
         }
         catch (Exception ex)
         {
-            return HealthCheckResult.Unhealthy("RabbitMQ health check failed.", ex);
+            return HealthCheckResult.Degraded("RabbitMQ health check failed.", ex);
         }
     }
 }

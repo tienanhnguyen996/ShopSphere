@@ -18,7 +18,10 @@ public class SqlServerHealthCheck : IHealthCheck
     {
         try
         {
-            var canConnect = await _dbContext.Database.CanConnectAsync(cancellationToken);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(3));
+
+            var canConnect = await _dbContext.Database.CanConnectAsync(cts.Token);
             return canConnect
                 ? HealthCheckResult.Healthy("SQL Server database connection is responsive.")
                 : HealthCheckResult.Unhealthy("SQL Server database connection failed.");

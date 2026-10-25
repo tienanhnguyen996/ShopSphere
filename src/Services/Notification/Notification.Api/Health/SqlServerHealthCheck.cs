@@ -9,7 +9,9 @@ public sealed class SqlServerHealthCheck(IConfiguration configuration) : IHealth
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        var connectionString = configuration.GetConnectionString("NotificationDb");
+        var connectionString = configuration.GetConnectionString("NotificationDb")
+            ?? configuration.GetConnectionString("Database");
+
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             return HealthCheckResult.Unhealthy("NotificationDb connection string is missing.");
@@ -17,11 +19,14 @@ public sealed class SqlServerHealthCheck(IConfiguration configuration) : IHealth
 
         try
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(3));
+
             await using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync(cancellationToken);
+            await connection.OpenAsync(cts.Token);
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT 1";
-            await command.ExecuteScalarAsync(cancellationToken);
+            await command.ExecuteScalarAsync(cts.Token);
             return HealthCheckResult.Healthy("SQL Server is reachable.");
         }
         catch (Exception ex)

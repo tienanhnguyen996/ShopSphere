@@ -46,7 +46,7 @@ public static class OrderApiEndpoints
                         })
                 };
 
-                context.Response.StatusCode = report.Status == HealthStatus.Healthy
+                context.Response.StatusCode = report.Status != HealthStatus.Unhealthy
                     ? StatusCodes.Status200OK
                     : StatusCodes.Status503ServiceUnavailable;
                 await context.Response.WriteAsJsonAsync(response);

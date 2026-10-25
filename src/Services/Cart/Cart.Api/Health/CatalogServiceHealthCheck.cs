@@ -16,8 +16,11 @@ public class CatalogServiceHealthCheck : IHealthCheck
     {
         try
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(3));
+
             // Health ping query
-            var result = await _catalogClient.GetProductBySkuAsync("HEALTH-CHECK-PING", cancellationToken);
+            var result = await _catalogClient.GetProductBySkuAsync("HEALTH-CHECK-PING", cts.Token);
             if (result.IsFailure && result.Error.Code == "Cart.CatalogUnavailable")
             {
                 return HealthCheckResult.Unhealthy($"Catalog service downstream dependency is unavailable: {result.Error.Description}");
