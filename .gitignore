@@ -51,7 +51,7 @@ Thumbs.db
 terraform.tfvars
 
 # Docker
-.dockerignore
+deploy/docker/local/
 
 # Test results
 TestResults/

@@ -1,0 +1,28 @@
+# Multi-stage Dockerfile for ShopSphere YARP API Gateway
+ARG DOTNET_VERSION=10.0
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-alpine AS build
+WORKDIR /src
+
+# Copy central package management and build props
+COPY Directory.Build.props Directory.Packages.props ./
+
+# Copy BuildingBlocks and Gateway
+COPY src/BuildingBlocks/ src/BuildingBlocks/
+COPY src/Gateway/ src/Gateway/
+
+# Restore and publish
+RUN dotnet restore src/Gateway/ShopSphere.Gateway/ShopSphere.Gateway.csproj
+RUN dotnet publish src/Gateway/ShopSphere.Gateway/ShopSphere.Gateway.csproj -c Release -o /app/publish --no-restore
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-alpine AS runtime
+WORKDIR /app
+
+USER $APP_UID
+
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "ShopSphere.Gateway.dll"]

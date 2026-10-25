@@ -1,0 +1,13 @@
+.git
+.github
+.vscode
+.idea
+.devcontainer
+.superpowers
+bin/
+obj/
+node_modules/
+tests/
+artifacts/
+deploy/terraform/
+*.log

@@ -119,11 +119,11 @@ public class ReservationExpiryWorker : BackgroundService
                     expiredEvent,
                     reservation.OrderId.ToString());
 
-                await publishEndpoint.Publish(envelope, ct);
-                await publishEndpoint.Publish(envelope.Payload, ct);
-
                 await dbContext.SaveChangesAsync(ct);
                 releasedCount++;
+
+                await publishEndpoint.Publish(envelope, ct);
+                await publishEndpoint.Publish(envelope.Payload, ct);
 
                 _logger.LogInformation(
                     "Expired reservation {ReservationId} for Order {OrderId} (SKU: {Sku}, Quantity: {Quantity}) released successfully.",
