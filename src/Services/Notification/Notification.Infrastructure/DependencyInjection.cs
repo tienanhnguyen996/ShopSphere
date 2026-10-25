@@ -16,6 +16,7 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("NotificationDb")
+            ?? configuration.GetConnectionString("Database")
             ?? "Server=localhost,1433;Database=ShopSphere_Notification;User Id=sa;Password=DevPassword123!;TrustServerCertificate=True;Encrypt=False";
 
         services.AddDbContext<NotificationDbContext>(options =>

@@ -82,6 +82,24 @@ module "rabbitmq" {
   admin_password = random_password.rabbitmq_admin.result
 }
 
+# 8b. Automated Secret Versions (Populate generated connection strings into Secret Manager)
+resource "google_secret_manager_secret_version" "db_conn" {
+  for_each    = module.cloud_sql.connection_strings
+  secret      = module.secrets.db_secret_ids[each.key]
+  secret_data = each.value
+}
+
+resource "google_secret_manager_secret_version" "rabbitmq_conn" {
+  for_each    = module.secrets.rabbitmq_secret_ids
+  secret      = each.value
+  secret_data = "amqp://admin:${random_password.rabbitmq_admin.result}@rabbitmq.shopsphere.internal:5672/"
+}
+
+resource "google_secret_manager_secret_version" "redis_auth" {
+  secret      = module.secrets.redis_auth_secret_id
+  secret_data = module.memorystore.auth_string
+}
+
 # 9. Cloud Run Service: YARP API Gateway
 module "gateway" {
   source                = "../../modules/cloud-run-service"
@@ -171,14 +189,27 @@ module "services" {
     "serviceAccount:${module.iam_wif.gateway_service_account_email}"
   ]
 
-  secret_env_vars = {
-    ConnectionStrings__Database = module.secrets.db_secret_ids[each.key]
-    RabbitMQ__ConnectionString  = module.secrets.rabbitmq_secret_ids[each.key]
-  }
+  secret_env_vars = merge(
+    each.key != "cart" ? {
+      ConnectionStrings__Database = module.secrets.db_secret_ids[each.key]
+    } : {},
+    {
+      RabbitMQ__ConnectionString = module.secrets.rabbitmq_secret_ids[each.key]
+    }
+  )
 
-  env_vars = {
-    ASPNETCORE_ENVIRONMENT = "Development"
-  }
+  env_vars = merge(
+    {
+      ASPNETCORE_ENVIRONMENT = "Development"
+      RabbitMQ__Host         = "rabbitmq.shopsphere.internal"
+      RabbitMQ__Port         = "5672"
+      RabbitMQ__Username     = "admin"
+      RabbitMQ__Password     = random_password.rabbitmq_admin.result
+    },
+    each.key == "cart" ? {
+      ConnectionStrings__Redis = "${module.memorystore.host}:${module.memorystore.port},password=${module.memorystore.auth_string},ssl=False,abortConnect=False"
+    } : {}
+  )
 }
 
 # 11. Cloud Run Jobs: EF Core Migration Runners

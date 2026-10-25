@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddSingleton<AuditSaveChangesInterceptor>();
 
         var connectionString = configuration.GetConnectionString("IdentityDatabase")
+            ?? configuration.GetConnectionString("Database")
             ?? "Server=localhost,1433;Database=ShopSphereIdentity;User Id=sa;Password=DevPassword123!;TrustServerCertificate=True;";
 
         services.AddDbContext<IdentityDbContext>((sp, options) =>
