@@ -78,7 +78,7 @@ resource "google_monitoring_alert_policy" "cloud_run_memory" {
 
       aggregations {
         alignment_period   = "60s"
-        per_series_aligner = "ALIGN_MEAN"
+        per_series_aligner = "ALIGN_PERCENTILE_99"
       }
     }
   }
