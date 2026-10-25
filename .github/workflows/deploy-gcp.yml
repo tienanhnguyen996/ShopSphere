@@ -126,7 +126,7 @@ jobs:
         run: |
           for svc in gateway catalog cart identity inventory payment order shipping notification; do
             echo "Updating Cloud Run service shopsphere-${svc}-dev..."
-            gcloud run deploy "shopsphere-${svc}-dev" \
+            gcloud run services update "shopsphere-${svc}-dev" \
               --image="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${svc}:${{ github.sha }}" \
               --region="${{ env.REGION }}" \
               --quiet || true

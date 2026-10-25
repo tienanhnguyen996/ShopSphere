@@ -8,7 +8,6 @@ resource "google_cloud_run_v2_service" "service" {
     ignore_changes = [
       client,
       client_version,
-      template[0].containers[0].image
     ]
   }
 
