@@ -20,7 +20,9 @@ import {
 
 export interface CustomerOrderReceiptProps {
   order: OrderDto;
+  orders?: OrderDto[];
   shipment?: ShipmentDto | null;
+  onSelectOrder?: (order: OrderDto) => void;
   onOrderUpdated?: (order: OrderDto) => void;
   onContinueShopping: () => void;
   onViewStaffDetails?: () => void;
@@ -28,7 +30,9 @@ export interface CustomerOrderReceiptProps {
 
 export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
   order,
+  orders,
   shipment,
+  onSelectOrder,
   onOrderUpdated,
   onContinueShopping,
   onViewStaffDetails,
@@ -36,8 +40,11 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
   const [copiedId, setCopiedId] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [fetchedShipment, setFetchedShipment] = useState<ShipmentDto | null>(null);
+  const [fetchedOrders, setFetchedOrders] = useState<OrderDto[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const allOrders =
+    fetchedOrders.length > 0 ? fetchedOrders : orders && orders.length > 0 ? orders : [order];
   const resolvedShipment = shipment ?? fetchedShipment;
   const orderState = normalizeOrderState(order.status ?? undefined);
   const shipmentState = resolvedShipment
@@ -45,11 +52,21 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
     : null;
 
   const syncOrderAndShipment = useCallback(async () => {
-    if (!order.id || order.id.startsWith('demo-')) {
-      return;
-    }
     setIsRefreshing(true);
     try {
+      try {
+        const pagedOrders = await OrdersService.getOrders({ page: 1, pageSize: 20 });
+        if (pagedOrders.items && pagedOrders.items.length > 0) {
+          setFetchedOrders(pagedOrders.items);
+        }
+      } catch {
+        // Keep current orders list if OrderService fails
+      }
+
+      if (!order.id || order.id.startsWith('demo-')) {
+        return;
+      }
+
       try {
         const latestOrder = await OrdersService.getOrderById({ id: order.id });
         if (onOrderUpdated) {
@@ -63,7 +80,7 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
         const latestShipment = await ShipmentsService.getShipmentByOrderId({ orderId: order.id });
         setFetchedShipment(latestShipment);
       } catch {
-        // Shipment may not exist yet before OrderConfirmed
+        setFetchedShipment(null);
       }
     } finally {
       setIsRefreshing(false);
@@ -149,6 +166,83 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-xs border border-gray-100 p-6 sm:p-8 space-y-8">
+      {/* Customer Order History List */}
+      <div className="space-y-3 pb-6 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">My Orders ({allOrders.length})</h3>
+            <p className="text-xs text-gray-500">
+              Select an order below to view its receipt, items, and live delivery status.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto pr-1">
+          {allOrders.map((itemOrder) => {
+            const isSelected = itemOrder.id === order.id;
+            const itemState = normalizeOrderState(itemOrder.status ?? undefined);
+            const itemCount = (itemOrder.items ?? []).reduce(
+              (sum, i) => sum + (i.quantity ?? 1),
+              0
+            );
+            const createdLabel = itemOrder.createdAtUtc
+              ? new Date(itemOrder.createdAtUtc).toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Recent';
+
+            return (
+              <button
+                key={itemOrder.id}
+                type="button"
+                onClick={() => {
+                  setFetchedShipment(null);
+                  if (onSelectOrder) {
+                    onSelectOrder(itemOrder);
+                  } else if (onOrderUpdated) {
+                    onOrderUpdated(itemOrder);
+                  }
+                }}
+                className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+                  isSelected
+                    ? 'border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-500/20'
+                    : 'border-gray-200 hover:border-gray-300 bg-gray-50/40 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold font-mono text-gray-900">
+                    #{itemOrder.id?.slice(0, 8) ?? 'N/A'}
+                  </span>
+                  <Badge
+                    variant={
+                      itemState === 'Confirmed'
+                        ? 'success'
+                        : itemState === 'Cancelled' || itemState === 'Refunding'
+                          ? 'danger'
+                          : itemState === 'PaymentUnknown'
+                            ? 'warning'
+                            : 'info'
+                    }
+                  >
+                    {itemState}
+                  </Badge>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
+                  <span>
+                    {itemCount} {itemCount === 1 ? 'item' : 'items'} &middot; {createdLabel}
+                  </span>
+                  <span className="font-bold text-gray-900">
+                    {formatCurrencyAmount(itemOrder.totalAmount ?? 0, itemOrder.currency, false)}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
         <div>
