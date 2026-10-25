@@ -151,8 +151,8 @@ jobs:
       - name: Update Cloud Run Services
         run: |
           for svc in gateway catalog cart identity inventory payment order shipping notification; do
-            echo "Updating Cloud Run service $svc..."
-            gcloud run deploy "$svc" \
+            echo "Updating Cloud Run service ${svc}-dev..."
+            gcloud run deploy "${svc}-dev" \
               --image="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${svc}:${{ github.sha }}" \
               --region="${{ env.REGION }}" \
               --quiet || true
