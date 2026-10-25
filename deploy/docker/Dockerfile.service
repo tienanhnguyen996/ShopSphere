@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for ShopSphere .NET microservices
 ARG DOTNET_VERSION=10.0
-FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION}-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
 WORKDIR /src
 
 # Copy central package management and build props
@@ -20,13 +20,9 @@ COPY ${SERVICE_DIR}/ ${SERVICE_DIR}/
 RUN dotnet restore ${PROJECT_PATH}
 RUN dotnet publish ${PROJECT_PATH} -c Release -o /app/publish --no-restore
 
-# Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}-alpine AS runtime
+# Runtime stage (Debian-based has full glibc & ICU support for SQL Server)
+FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION} AS runtime
 WORKDIR /app
-
-USER root
-RUN apk add --no-cache icu-libs icu-data-full tzdata
-ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
 USER $APP_UID
 
