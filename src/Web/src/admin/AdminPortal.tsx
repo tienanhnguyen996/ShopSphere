@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Activity, ArrowLeft, Boxes, Cpu, Mail, RefreshCw, Sliders, Truck } from 'lucide-react';
 import {
   getCorrelationId,
   InventoryService,
   NotificationJobDto,
+  NotificationsService,
   OrderDto,
+  OrdersService,
   ShipmentDto,
+  ShipmentsService,
 } from '../api';
 import { Badge, Button } from '../shared/components';
 import {
@@ -53,8 +56,135 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [adjustSku, setAdjustSku] = useState<string>(products[0]?.sku ?? 'KB-ERG-01');
   const [adjustQty, setAdjustQty] = useState<number>(5);
   const [isAdjustingStock, setIsAdjustingStock] = useState<boolean>(false);
+  const [isSyncingArtifacts, setIsSyncingArtifacts] = useState<boolean>(false);
 
   const orderState = normalizeOrderState(order.status ?? undefined);
+  const isDemoOrder = !order.id || order.id.startsWith('demo-');
+
+  const buildFallbackShipment = useCallback(
+    (targetOrder: OrderDto): ShipmentDto => {
+      const now = new Date().toISOString();
+      const country = (targetOrder.shippingAddress?.country ?? 'US').toUpperCase();
+      const isVietnam = country === 'VN' || country === 'VIETNAM';
+      return {
+        id: isDemoOrder
+          ? `demo-ship-${targetOrder.id ?? '1'}`
+          : (targetOrder.shipmentId ?? `demo-ship-${targetOrder.id ?? '1'}`),
+        orderId: targetOrder.id,
+        customerId: targetOrder.customerId,
+        status: 'LabelCreated',
+        carrier: isVietnam ? 'GHN Express (VN Sandbox)' : 'Shippo Express (US/Intl Sandbox)',
+        trackingNumber:
+          targetOrder.trackingNumber ??
+          `${isVietnam ? 'GHN' : 'SS-TRK'}-${(targetOrder.id ?? '1001').slice(-6).toUpperCase()}`,
+        address: {
+          recipientName: targetOrder.shippingAddress?.recipientName ?? 'Alex Rivera',
+          street: targetOrder.shippingAddress?.street ?? '742 Evergreen Terrace',
+          city: targetOrder.shippingAddress?.city ?? 'Austin',
+          state: targetOrder.shippingAddress?.state ?? 'TX',
+          postalCode: targetOrder.shippingAddress?.postalCode ?? '78701',
+          country: targetOrder.shippingAddress?.country ?? 'US',
+        },
+        createdAtUtc: now,
+        milestones: [
+          {
+            id: 'ms-label',
+            status: 'LabelCreated',
+            location: isVietnam ? 'Ho Chi Minh Sorting Hub' : 'Austin Fulfillment Center',
+            description: 'Shipping label created upon OrderConfirmed saga event.',
+            occurredAtUtc: now,
+          },
+        ],
+      };
+    },
+    [isDemoOrder]
+  );
+
+  const syncOrderArtifacts = useCallback(async () => {
+    if (!order.id || isDemoOrder) {
+      return;
+    }
+
+    setIsSyncingArtifacts(true);
+    try {
+      const latestOrder = await OrdersService.getOrderById({ id: order.id });
+      onOrderUpdated(latestOrder);
+
+      try {
+        const latestShipment = await ShipmentsService.getShipmentByOrderId({ orderId: order.id });
+        setShipment(latestShipment);
+      } catch {
+        // Shipment may not exist yet until OrderConfirmed
+      }
+
+      try {
+        const jobs = await NotificationsService.getNotificationsByOrderId({ orderId: order.id });
+        setNotifications(jobs);
+      } catch {
+        // Notifications may not exist yet
+      }
+    } catch {
+      // Keep local snapshot if gateway is unreachable
+    } finally {
+      setIsSyncingArtifacts(false);
+    }
+  }, [isDemoOrder, onOrderUpdated, order.id]);
+
+  useEffect(() => {
+    void syncOrderArtifacts();
+  }, [syncOrderArtifacts, orderState]);
+
+  useEffect(() => {
+    if (orderState === 'Confirmed' && !shipment) {
+      setShipment(buildFallbackShipment(order));
+    }
+
+    if ((orderState === 'Confirmed' || orderState === 'Cancelled') && notifications.length === 0) {
+      const now = new Date().toISOString();
+      setNotifications([
+        {
+          id: `demo-notif-${order.id ?? '1'}`,
+          orderId: order.id,
+          customerId: order.customerId,
+          notificationType: orderState === 'Confirmed' ? 'OrderConfirmed' : 'OrderCancelled',
+          channel: 'Email',
+          recipient: `${order.customerId ?? 'alex.rivera'}@customers.shopsphere.local`,
+          subject:
+            orderState === 'Confirmed'
+              ? `Order ${order.id ?? ''} Confirmed — Ready for Carrier Handover`
+              : `Order ${order.id ?? ''} Cancelled & Refund Initiated`,
+          body:
+            orderState === 'Confirmed'
+              ? `Hello ${order.shippingAddress?.recipientName ?? 'Customer'},\nYour order (${formatCurrencyAmount(order.totalAmount ?? 0, order.currency, false)}) has been confirmed. Tracking number: ${order.trackingNumber ?? 'SS-TRK-ACTIVE'}.`
+              : `Hello ${order.shippingAddress?.recipientName ?? 'Customer'},\nYour order (${order.id ?? ''}) was cancelled and any reserved stock or payment has been compensated.`,
+          status: 'Sent',
+          retryCount: 0,
+          createdAtUtc: now,
+          sentAtUtc: now,
+        },
+      ]);
+    }
+  }, [buildFallbackShipment, notifications.length, order, orderState, shipment]);
+
+  const handleProvisionShipmentLabel = () => {
+    const generated = buildFallbackShipment(order);
+    setShipment(generated);
+    const updatedOrder: OrderDto = {
+      ...order,
+      status: 'Confirmed',
+      shipmentId: generated.id,
+      trackingNumber: generated.trackingNumber,
+      updatedAtUtc: new Date().toISOString(),
+    };
+    onOrderUpdated(updatedOrder);
+    if (onNotifyToast) {
+      onNotifyToast(
+        '[Admin] Carrier Label Provisioned',
+        `Assigned tracking # ${generated.trackingNumber ?? ''} via ${generated.carrier ?? 'Carrier'}.`,
+        'success'
+      );
+    }
+  };
 
   const handleSimulateStateChange = (nextState: OrderState) => {
     const updated: OrderDto = {
@@ -400,6 +530,55 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         {/* TAB 3: SHIPPING & FULFILLMENT */}
         {activeTab === 'shipping' && (
           <div className="space-y-6">
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                  Carrier Fulfillment &amp; Handover Controls
+                </span>
+                <div className="flex items-center space-x-2.5 mt-1">
+                  <h2 className="text-lg font-mono font-bold text-white">
+                    Order #{order.id ?? 'demo-ord-9042'}
+                  </h2>
+                  <Badge variant={orderState === 'Confirmed' ? 'success' : 'warning'}>
+                    Order: {orderState}
+                  </Badge>
+                  {shipment && (
+                    <Badge variant="info">
+                      Shipment: {shipment.status ?? 'LabelCreated'} ({shipment.trackingNumber})
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Routes Vietnam (`VN`) addresses to GHN Sandbox and US/International addresses to
+                  Shippo Sandbox (with MockCarrierProviderClient fallback).
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  isLoading={isSyncingArtifacts}
+                  onClick={() => void syncOrderArtifacts()}
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                  Sync from ShippingService
+                </Button>
+                {!shipment && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleProvisionShipmentLabel}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white"
+                  >
+                    <Truck className="w-3.5 h-3.5 mr-1.5" />
+                    Provision Carrier Label Now
+                  </Button>
+                )}
+              </div>
+            </div>
+
             <div className="bg-white rounded-2xl p-6 text-slate-900 shadow-sm border border-slate-200">
               <OrderTrackingTimeline
                 shipment={shipment}
