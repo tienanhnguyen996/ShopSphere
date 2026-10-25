@@ -13,6 +13,7 @@ builder.Services.AddPaymentInfrastructure(builder.Configuration);
 builder.Services.AddShopSphereMessaging(builder.Configuration, busConfig =>
 {
     busConfig.AddConsumer<CollectPaymentConsumer>();
+    busConfig.AddConsumer<RefundPaymentConsumer>();
     busConfig.AddShopSphereOutbox<PaymentDbContext>();
 });
 
