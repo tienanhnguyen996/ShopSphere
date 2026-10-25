@@ -8,7 +8,7 @@ public class IdentityDbContextFactory : IDesignTimeDbContextFactory<IdentityDbCo
     public IdentityDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<IdentityDbContext>();
-        optionsBuilder.UseSqlServer("Server=localhost,1433;Database=ShopSphereIdentity;User Id=sa;Password=Your_password123;TrustServerCertificate=True;");
+        optionsBuilder.UseSqlServer("Server=localhost,1433;Database=ShopSphereIdentity;User Id=sa;Password=DevPassword123!;TrustServerCertificate=True;");
         return new IdentityDbContext(optionsBuilder.Options);
     }
 }

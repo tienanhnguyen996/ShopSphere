@@ -15,6 +15,16 @@ docker compose -f deploy/compose/docker-compose.yml ps
 
 sleep 3
 
+# Ensure SQL Server 'sa' password matches DevPassword123! even if an older Docker volume exists
+if ! printf "SELECT 1;\nGO\n" | docker exec -i shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "DevPassword123!" -C >/dev/null 2>&1; then
+    for legacy_pass in "Your_password123" "YourStrong@Passw0rd" "ShopSphere_DevPassword123!"; do
+        if printf "ALTER LOGIN [sa] WITH PASSWORD = N'DevPassword123!';\nGO\n" | docker exec -i shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$legacy_pass" -C >/dev/null 2>&1; then
+            echo "Synchronized SQL Server 'sa' password to DevPassword123!."
+            break
+        fi
+    done
+fi
+
 PIDS=()
 
 cleanup() {

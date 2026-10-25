@@ -8,7 +8,7 @@ public class InventoryDbContextFactory : IDesignTimeDbContextFactory<InventoryDb
     public InventoryDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<InventoryDbContext>();
-        optionsBuilder.UseSqlServer("Server=localhost,1433;Database=ShopSphereInventory;User Id=sa;Password=Your_password123;TrustServerCertificate=True;");
+        optionsBuilder.UseSqlServer("Server=localhost,1433;Database=ShopSphereInventory;User Id=sa;Password=DevPassword123!;TrustServerCertificate=True;");
         return new InventoryDbContext(optionsBuilder.Options);
     }
 }
