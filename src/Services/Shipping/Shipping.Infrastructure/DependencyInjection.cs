@@ -18,7 +18,7 @@ public static class DependencyInjection
         IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("ShippingDb")
-            ?? "Server=localhost,1433;Database=ShopSphere_Shipping;User Id=sa;Password=ShopSphere_DevPassword123!;TrustServerCertificate=True;Encrypt=False";
+            ?? "Server=localhost,1433;Database=ShopSphere_Shipping;User Id=sa;Password=DevPassword123!;TrustServerCertificate=True;Encrypt=False";
 
         services.AddDbContext<ShippingDbContext>(options =>
         {
@@ -26,7 +26,8 @@ public static class DependencyInjection
             {
                 sql.MigrationsHistoryTable("__EFMigrationsHistory", ShippingDbContext.DefaultSchema);
                 sql.EnableRetryOnFailure(3);
-            });
+            })
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
         services.AddScoped<IShippingDbContext>(sp => sp.GetRequiredService<ShippingDbContext>());

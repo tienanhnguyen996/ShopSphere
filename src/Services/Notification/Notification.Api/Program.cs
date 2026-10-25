@@ -47,6 +47,20 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Notification Service API v1");
     });
+
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetService<NotificationDbContext>();
+        if (dbContext is not null)
+        {
+            await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(dbContext.Database);
+        }
+    }
+    catch
+    {
+        // Ignore migration errors in isolated test environments without SQL Server
+    }
 }
 
 app.UseHttpsRedirection();

@@ -141,6 +141,10 @@ public class ReserveInventoryConsumer :
 
                 await publishEndpoint.Publish(successEnvelope, ct);
                 await publishEndpoint.Publish(successEnvelope.Payload, ct);
+                if (_dbContext is DbContext efDb && efDb.ChangeTracker.HasChanges())
+                {
+                    await _dbContext.SaveChangesAsync(ct);
+                }
                 return;
             }
             catch (DbUpdateConcurrencyException ex)

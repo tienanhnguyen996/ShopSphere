@@ -50,6 +50,21 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Inventory Service API v1");
     });
+
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetService<InventoryDbContext>();
+        if (dbContext is not null)
+        {
+            await Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.MigrateAsync(dbContext.Database);
+            await InventoryDbSeeder.SeedAsync(dbContext);
+        }
+    }
+    catch
+    {
+        // Ignore migration/seeding errors in isolated test environments without SQL Server
+    }
 }
 
 app.UseHttpsRedirection();

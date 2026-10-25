@@ -7,6 +7,7 @@ import {
   configureApiClients,
   InventoryService,
   OrderDto,
+  OrdersService,
   ProductsService,
 } from './api';
 import { Button, ErrorBoundary, OfflineToast, ToastContainer } from './shared/components';
@@ -173,6 +174,7 @@ export const App: React.FC = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
 
   const [activeOrder, setActiveOrder] = useState<OrderDto>(INITIAL_DEMO_ORDER);
+  const [customerOrders, setCustomerOrders] = useState<OrderDto[]>([INITIAL_DEMO_ORDER]);
   const [showOrderTracker, setShowOrderTracker] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'store' | 'admin'>('store');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -239,8 +241,9 @@ export const App: React.FC = () => {
 
       const serverCart = await CartService.getCart();
       if (!serverCart.items || serverCart.items.length === 0) {
+        const defaultSku = paged.items?.[0]?.sku ?? 'KB-RGB-001';
         const seededCart = await CartService.addItemToCart({
-          requestBody: { sku: 'KB-ERG-01', quantity: 1 },
+          requestBody: { sku: defaultSku, quantity: 1 },
         });
         setCart(seededCart);
       } else {
@@ -248,6 +251,21 @@ export const App: React.FC = () => {
       }
       const serverQuote = await CartService.getCartCheckoutQuote();
       setQuote(serverQuote);
+
+      try {
+        const pagedOrders = await OrdersService.getOrders({ page: 1, pageSize: 20 });
+        if (pagedOrders.items && pagedOrders.items.length > 0) {
+          setCustomerOrders(pagedOrders.items);
+          const latestOrder = pagedOrders.items[0];
+          if (latestOrder) {
+            setActiveOrder((prev) =>
+              !prev.id || prev.id.startsWith('demo-') ? latestOrder : prev
+            );
+          }
+        }
+      } catch {
+        // Keep current active order if OrderService is unreachable
+      }
     } catch {
       // Gateway offline or running standalone UI demo: keep seeded catalog and stock
     } finally {
@@ -424,7 +442,7 @@ export const App: React.FC = () => {
                 className="text-gray-700"
               >
                 <Package className="w-4 h-4 mr-1.5 text-gray-500" />
-                {showOrderTracker ? 'Hide Order' : 'Track Order'}
+                {showOrderTracker ? 'Hide Orders' : `My Orders (${customerOrders.length})`}
               </Button>
 
               <Button
@@ -503,7 +521,16 @@ export const App: React.FC = () => {
           {showOrderTracker && (
             <CustomerOrderReceipt
               order={activeOrder}
-              onOrderUpdated={setActiveOrder}
+              orders={customerOrders}
+              onSelectOrder={setActiveOrder}
+              onOrderUpdated={(updatedOrder) => {
+                setActiveOrder(updatedOrder);
+                setCustomerOrders((prev) => {
+                  const exists = prev.some((o) => o.id === updatedOrder.id);
+                  if (!exists) return [updatedOrder, ...prev];
+                  return prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
+                });
+              }}
               onContinueShopping={() => setShowOrderTracker(false)}
               onViewStaffDetails={() => setViewMode('admin')}
             />
@@ -544,6 +571,10 @@ export const App: React.FC = () => {
           onClose={() => setIsCheckoutOpen(false)}
           onOrderCreated={(createdOrder) => {
             setActiveOrder(createdOrder);
+            setCustomerOrders((prev) => [
+              createdOrder,
+              ...prev.filter((o) => o.id !== createdOrder.id && !o.id?.startsWith('demo-')),
+            ]);
             setIsCheckoutOpen(false);
             setShowOrderTracker(true);
             const emptyCart: CartDto = { customerId: 'cust-alex-01', items: [], totalQuantity: 0 };

@@ -23,6 +23,8 @@ public interface ISubmitCheckoutCommandHandler
 
 public class SubmitCheckoutCommandHandler : ISubmitCheckoutCommandHandler
 {
+    public const decimal UsdToVndExchangeRate = 25400m;
+
     private readonly IOrderDbContext _dbContext;
     private readonly ICartClient _cartClient;
     private readonly IPublishEndpoint _publishEndpoint;
@@ -38,6 +40,27 @@ public class SubmitCheckoutCommandHandler : ISubmitCheckoutCommandHandler
         _cartClient = cartClient ?? throw new ArgumentNullException(nameof(cartClient));
         _publishEndpoint = publishEndpoint ?? throw new ArgumentNullException(nameof(publishEndpoint));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public static bool IsVndPaymentMethod(string paymentMethod)
+    {
+        var normalized = paymentMethod.Trim().ToLowerInvariant();
+        return normalized is "momo" or "digital_wallet" or "ewallet" or "vnpay" or "bank_transfer" or "banking";
+    }
+
+    public static (decimal UnitPrice, string Currency) ConvertPriceForPaymentMethod(
+        decimal unitPrice,
+        string currency,
+        string paymentMethod)
+    {
+        var normalizedCurrency = string.IsNullOrWhiteSpace(currency) ? "USD" : currency.Trim().ToUpperInvariant();
+        if (IsVndPaymentMethod(paymentMethod) && !string.Equals(normalizedCurrency, "VND", StringComparison.OrdinalIgnoreCase))
+        {
+            var convertedVnd = decimal.Round(unitPrice * UsdToVndExchangeRate, 0, MidpointRounding.AwayFromZero);
+            return (convertedVnd, "VND");
+        }
+
+        return (unitPrice, normalizedCurrency);
     }
 
     public async Task<Result<OrderDto>> HandleAsync(SubmitCheckoutCommand command, CancellationToken ct = default)
@@ -88,14 +111,22 @@ public class SubmitCheckoutCommandHandler : ISubmitCheckoutCommandHandler
                 command.ShippingAddress.Phone);
 
             var snapshotItems = quote.Items
-                .Select(i => OrderItem.Create(
-                    orderId,
-                    i.Sku,
-                    i.ProductName,
-                    i.Quantity,
-                    i.UnitPrice,
-                    i.Currency,
-                    i.PriceVersion))
+                .Select(i =>
+                {
+                    var (convertedUnitPrice, targetCurrency) = ConvertPriceForPaymentMethod(
+                        i.UnitPrice,
+                        i.Currency,
+                        command.PaymentMethod);
+
+                    return OrderItem.Create(
+                        orderId,
+                        i.Sku,
+                        i.ProductName,
+                        i.Quantity,
+                        convertedUnitPrice,
+                        targetCurrency,
+                        i.PriceVersion);
+                })
                 .ToList();
 
             order = ShopSphere.Services.Order.Domain.Order.Create(

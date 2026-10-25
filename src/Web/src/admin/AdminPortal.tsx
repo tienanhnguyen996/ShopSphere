@@ -1,21 +1,31 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Activity, ArrowLeft, Boxes, Cpu, Mail, RefreshCw, Sliders, Truck } from 'lucide-react';
 import {
   getCorrelationId,
   InventoryService,
   NotificationJobDto,
+  NotificationsService,
   OrderDto,
+  OrdersService,
   ShipmentDto,
+  ShipmentsService,
 } from '../api';
 import { Badge, Button } from '../shared/components';
-import { Product, StockSummary } from '../shared/types';
+import {
+  formatCurrencyAmount,
+  normalizeOrderState,
+  normalizeShipmentState,
+  OrderState,
+  Product,
+  StockSummary,
+  validateOrderStateTransition,
+} from '../shared/types';
 import {
   EmailPreviewCard,
   OrderStateVisualizer,
   OrderTrackingTimeline,
   UnknownPaymentBanner,
 } from '../features/orders';
-import { normalizeOrderState, OrderState } from '../shared/types';
 
 export interface AdminPortalProps {
   order: OrderDto;
@@ -45,13 +55,224 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   >('saga');
   const [shipment, setShipment] = useState<ShipmentDto | null>(null);
   const [notifications, setNotifications] = useState<NotificationJobDto[]>([]);
+  const [recentOrders, setRecentOrders] = useState<OrderDto[]>([]);
   const [adjustSku, setAdjustSku] = useState<string>(products[0]?.sku ?? 'KB-ERG-01');
   const [adjustQty, setAdjustQty] = useState<number>(5);
   const [isAdjustingStock, setIsAdjustingStock] = useState<boolean>(false);
+  const [isSyncingArtifacts, setIsSyncingArtifacts] = useState<boolean>(false);
+  const [stateTransitionError, setStateTransitionError] = useState<string | null>(null);
 
   const orderState = normalizeOrderState(order.status ?? undefined);
+  const shipmentState = shipment ? normalizeShipmentState(shipment.status ?? undefined) : null;
+  const isDemoOrder = !order.id || order.id.startsWith('demo-');
 
-  const handleSimulateStateChange = (nextState: OrderState) => {
+  const buildFallbackShipment = useCallback(
+    (targetOrder: OrderDto): ShipmentDto => {
+      const now = new Date().toISOString();
+      const country = (targetOrder.shippingAddress?.country ?? 'US').toUpperCase();
+      const isVietnam = country === 'VN' || country === 'VIETNAM';
+      return {
+        id: isDemoOrder
+          ? `demo-ship-${targetOrder.id ?? '1'}`
+          : (targetOrder.shipmentId ?? `demo-ship-${targetOrder.id ?? '1'}`),
+        orderId: targetOrder.id,
+        customerId: targetOrder.customerId,
+        status: 'LabelCreated',
+        carrier: isVietnam ? 'GHN Express (VN Sandbox)' : 'Shippo Express (US/Intl Sandbox)',
+        trackingNumber:
+          targetOrder.trackingNumber ??
+          `${isVietnam ? 'GHN' : 'SS-TRK'}-${(targetOrder.id ?? '1001').slice(-6).toUpperCase()}`,
+        address: {
+          recipientName: targetOrder.shippingAddress?.recipientName ?? 'Alex Rivera',
+          street: targetOrder.shippingAddress?.street ?? '742 Evergreen Terrace',
+          city: targetOrder.shippingAddress?.city ?? 'Austin',
+          state: targetOrder.shippingAddress?.state ?? 'TX',
+          postalCode: targetOrder.shippingAddress?.postalCode ?? '78701',
+          country: targetOrder.shippingAddress?.country ?? 'US',
+        },
+        createdAtUtc: now,
+        milestones: [
+          {
+            id: 'ms-label',
+            status: 'LabelCreated',
+            location: isVietnam ? 'Ho Chi Minh Sorting Hub' : 'Austin Fulfillment Center',
+            description: 'Shipping label created upon OrderConfirmed saga event.',
+            occurredAtUtc: now,
+          },
+        ],
+      };
+    },
+    [isDemoOrder]
+  );
+
+  const buildFallbackNotifications = useCallback((targetOrder: OrderDto): NotificationJobDto[] => {
+    const state = normalizeOrderState(targetOrder.status ?? undefined);
+    const now = new Date().toISOString();
+    return [
+      {
+        id: `demo-notif-${targetOrder.id ?? '1'}`,
+        orderId: targetOrder.id,
+        customerId: targetOrder.customerId,
+        notificationType: state === 'Confirmed' ? 'OrderConfirmed' : 'OrderCancelled',
+        channel: 'Email',
+        recipient: `${targetOrder.customerId ?? 'alex.rivera'}@customers.shopsphere.local`,
+        subject:
+          state === 'Confirmed'
+            ? `Order ${targetOrder.id ?? ''} Confirmed — Ready for Carrier Handover`
+            : `Order ${targetOrder.id ?? ''} Cancelled & Refund Initiated`,
+        body:
+          state === 'Confirmed'
+            ? `Hello ${targetOrder.shippingAddress?.recipientName ?? 'Customer'},\nYour order (${formatCurrencyAmount(targetOrder.totalAmount ?? 0, targetOrder.currency, false)}) has been confirmed. Tracking number: ${targetOrder.trackingNumber ?? 'SS-TRK-ACTIVE'}.`
+            : `Hello ${targetOrder.shippingAddress?.recipientName ?? 'Customer'},\nYour order (${targetOrder.id ?? ''}) was cancelled and any reserved stock or payment has been compensated.`,
+        status: 'Sent',
+        retryCount: 0,
+        createdAtUtc: now,
+        sentAtUtc: now,
+      },
+    ];
+  }, []);
+
+  const syncOrderArtifacts = useCallback(async () => {
+    setIsSyncingArtifacts(true);
+    try {
+      let targetOrder: OrderDto = order;
+
+      try {
+        const paged = await OrdersService.getOrders({ page: 1, pageSize: 20 });
+        const list = paged.items ?? [];
+        setRecentOrders(list);
+        if ((!targetOrder.id || targetOrder.id.startsWith('demo-')) && list.length > 0 && list[0]) {
+          targetOrder = list[0];
+          onOrderUpdated(targetOrder);
+        }
+      } catch {
+        // Keep current order if OrderService list fails
+      }
+
+      const targetOrderId =
+        targetOrder.id && !targetOrder.id.startsWith('demo-')
+          ? targetOrder.id
+          : '00000000-0000-0000-0000-000000009042';
+
+      try {
+        const latestOrder = await OrdersService.getOrderById({ id: targetOrderId });
+        targetOrder = latestOrder;
+        onOrderUpdated(latestOrder);
+      } catch {
+        // Keep current order snapshot if demo ID is not in DB
+      }
+
+      try {
+        const latestShipment = await ShipmentsService.getShipmentByOrderId({
+          orderId: targetOrderId,
+        });
+        setShipment(latestShipment);
+      } catch {
+        if (normalizeOrderState(targetOrder.status ?? undefined) === 'Confirmed') {
+          setShipment((prev) => prev ?? buildFallbackShipment(targetOrder));
+        }
+      }
+
+      try {
+        const jobs = await NotificationsService.getNotificationsByOrderId({
+          orderId: targetOrderId,
+        });
+        if (jobs.length > 0) {
+          setNotifications(jobs);
+        } else {
+          const st = normalizeOrderState(targetOrder.status ?? undefined);
+          if (st === 'Confirmed' || st === 'Cancelled') {
+            setNotifications((prev) =>
+              prev.length > 0 ? prev : buildFallbackNotifications(targetOrder)
+            );
+          }
+        }
+      } catch {
+        const st = normalizeOrderState(targetOrder.status ?? undefined);
+        if (st === 'Confirmed' || st === 'Cancelled') {
+          setNotifications((prev) =>
+            prev.length > 0 ? prev : buildFallbackNotifications(targetOrder)
+          );
+        }
+      }
+    } finally {
+      setIsSyncingArtifacts(false);
+    }
+  }, [buildFallbackNotifications, buildFallbackShipment, onOrderUpdated, order]);
+
+  useEffect(() => {
+    void syncOrderArtifacts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.id, orderState]);
+
+  const handleProvisionShipmentLabel = () => {
+    if (orderState !== 'Confirmed') {
+      if (onNotifyToast) {
+        onNotifyToast(
+          'Invalid Order State',
+          `Cannot provision carrier label while order is '${orderState}'. Order must be 'Confirmed' first.`,
+          'danger'
+        );
+      }
+      return;
+    }
+    const generated = buildFallbackShipment(order);
+    setShipment(generated);
+    const updatedOrder: OrderDto = {
+      ...order,
+      status: 'Confirmed',
+      shipmentId: generated.id,
+      trackingNumber: generated.trackingNumber,
+      updatedAtUtc: new Date().toISOString(),
+    };
+    onOrderUpdated(updatedOrder);
+    if (onNotifyToast) {
+      onNotifyToast(
+        '[Admin] Carrier Label Provisioned',
+        `Assigned tracking # ${generated.trackingNumber ?? ''} via ${generated.carrier ?? 'Carrier'}.`,
+        'success'
+      );
+    }
+  };
+
+  const handleSimulateStateChange = async (nextState: OrderState) => {
+    const validation = validateOrderStateTransition(orderState, nextState, shipmentState);
+    if (!validation.allowed) {
+      const msg = validation.reason ?? `Cannot transition from '${orderState}' to '${nextState}'.`;
+      setStateTransitionError(msg);
+      if (onNotifyToast) {
+        onNotifyToast('[Admin] Invalid State Transition', msg, 'danger');
+      }
+      return;
+    }
+
+    setStateTransitionError(null);
+    if (nextState === 'Cancelled' && order.id && !isDemoOrder && orderState !== 'Refunding') {
+      try {
+        const cancelledOrder = await OrdersService.cancelOrder({
+          id: order.id,
+          requestBody: { reason: 'Admin initiated order cancellation from Saga Lifecycle tab' },
+        });
+        onOrderUpdated(cancelledOrder);
+        if (onNotifyToast) {
+          onNotifyToast(
+            '[Admin] Order Cancelled',
+            `Order ${order.id} cancelled via OrderService.`,
+            'danger'
+          );
+        }
+        return;
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error ? err.message : 'OrderService rejected cancellation request.';
+        setStateTransitionError(msg);
+        if (onNotifyToast) {
+          onNotifyToast('[Admin] Cancellation Rejected', msg, 'danger');
+        }
+        return;
+      }
+    }
+
     const updated: OrderDto = {
       ...order,
       status: nextState,
@@ -215,7 +436,29 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
 
         <div className="flex items-center space-x-2 text-xs text-slate-400 font-mono">
           <span>Active Order:</span>
-          <span className="text-white font-bold">{order.id ?? 'None'}</span>
+          {recentOrders.length > 0 ? (
+            <select
+              value={order.id ?? ''}
+              onChange={(e) => {
+                const selected = recentOrders.find((o) => o.id === e.target.value);
+                if (selected) {
+                  setShipment(null);
+                  setNotifications([]);
+                  onOrderUpdated(selected);
+                }
+              }}
+              className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono"
+            >
+              {recentOrders.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {(o.id ?? '').slice(0, 8)}... ({o.status} -{' '}
+                  {formatCurrencyAmount(o.totalAmount ?? 0, o.currency, false)})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-white font-bold">{order.id ?? 'None'}</span>
+          )}
         </div>
       </div>
 
@@ -248,8 +491,8 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   </Badge>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  Total: ${(order.totalAmount ?? 0).toFixed(2)} {order.currency ?? 'USD'} &middot;
-                  Payment: {order.paymentMethod ?? 'credit_card'}
+                  Total: {formatCurrencyAmount(order.totalAmount ?? 0, order.currency, true)}{' '}
+                  &middot; Payment: {order.paymentMethod ?? 'credit_card'}
                 </p>
               </div>
 
@@ -257,7 +500,11 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onRefreshCatalog()}
+                  isLoading={isSyncingArtifacts}
+                  onClick={() => {
+                    onRefreshCatalog();
+                    void syncOrderArtifacts();
+                  }}
                   className="border-slate-600 text-slate-300 hover:bg-slate-700"
                 >
                   <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
@@ -276,7 +523,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="bg-white rounded-2xl p-6 text-slate-900 shadow-sm border border-slate-200">
               <OrderStateVisualizer
                 status={orderState}
-                onSimulateStateChange={handleSimulateStateChange}
+                shipmentStatus={shipmentState}
+                isMutating={isSyncingArtifacts}
+                validationError={stateTransitionError}
+                onSimulateStateChange={(nextState) => void handleSimulateStateChange(nextState)}
               />
             </div>
           </div>
@@ -395,9 +645,60 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         {/* TAB 3: SHIPPING & FULFILLMENT */}
         {activeTab === 'shipping' && (
           <div className="space-y-6">
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                  Carrier Fulfillment &amp; Handover Controls
+                </span>
+                <div className="flex items-center space-x-2.5 mt-1">
+                  <h2 className="text-lg font-mono font-bold text-white">
+                    Order #{order.id ?? 'demo-ord-9042'}
+                  </h2>
+                  <Badge variant={orderState === 'Confirmed' ? 'success' : 'warning'}>
+                    Order: {orderState}
+                  </Badge>
+                  {shipment && (
+                    <Badge variant="info">
+                      Shipment: {shipment.status ?? 'LabelCreated'} ({shipment.trackingNumber})
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  Routes Vietnam (`VN`) addresses to GHN Sandbox and US/International addresses to
+                  Shippo Sandbox (with MockCarrierProviderClient fallback).
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  isLoading={isSyncingArtifacts}
+                  onClick={() => void syncOrderArtifacts()}
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                  Sync from ShippingService
+                </Button>
+                {!shipment && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={orderState !== 'Confirmed'}
+                    onClick={handleProvisionShipmentLabel}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white"
+                  >
+                    <Truck className="w-3.5 h-3.5 mr-1.5" />
+                    Provision Carrier Label Now
+                  </Button>
+                )}
+              </div>
+            </div>
+
             <div className="bg-white rounded-2xl p-6 text-slate-900 shadow-sm border border-slate-200">
               <OrderTrackingTimeline
                 shipment={shipment}
+                orderStatus={orderState}
                 onShipmentUpdated={(updatedShipment) => {
                   setShipment(updatedShipment);
                   if (onNotifyToast) {

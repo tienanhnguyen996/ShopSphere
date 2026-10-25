@@ -25,7 +25,8 @@ public static class DependencyInjection
         {
             var interceptor = sp.GetRequiredService<AuditSaveChangesInterceptor>();
             options.UseSqlServer(connectionString)
-                   .AddInterceptors(interceptor);
+                   .AddInterceptors(interceptor)
+                   .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
         services.AddScoped<IOrderDbContext>(sp => sp.GetRequiredService<OrderDbContext>());

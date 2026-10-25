@@ -133,8 +133,10 @@ test('API Client - all OpenAPI.BASE configs are initialized to empty string (spe
 });
 
 import {
+  getAllowedNextOrderStates,
   normalizeOrderState,
   normalizeShipmentState,
+  validateOrderStateTransition,
   type OrderState,
   type ShipmentState,
 } from '../shared/types/index.ts';
@@ -190,6 +192,32 @@ test('Shared Domain Types - normalizeShipmentState supports all 8 Shipping state
 
   assert.strictEqual(normalizeShipmentState('InvalidState'), 'Pending');
   assert.strictEqual(normalizeShipmentState(undefined), 'Pending');
+});
+
+test('Shared Domain Types - validateOrderStateTransition enforces Order Saga state machine rules', () => {
+  // Confirmed can only transition to Refunding (not directly to Cancelled or backwards to Pending/Paying)
+  assert.deepStrictEqual(getAllowedNextOrderStates('Confirmed'), ['Refunding']);
+  assert.strictEqual(validateOrderStateTransition('Confirmed', 'Refunding').allowed, true);
+  assert.strictEqual(validateOrderStateTransition('Confirmed', 'Cancelled').allowed, false);
+  assert.strictEqual(validateOrderStateTransition('Confirmed', 'Pending').allowed, false);
+
+  // Confirmed cannot transition to Refunding once shipment is HandedOver or Delivered
+  assert.strictEqual(
+    validateOrderStateTransition('Confirmed', 'Refunding', 'HandedOver').allowed,
+    false
+  );
+  assert.strictEqual(
+    validateOrderStateTransition('Confirmed', 'Refunding', 'Delivered').allowed,
+    false
+  );
+
+  // Cancelled cannot resurrect to Confirmed, only Refunding for late payment compensation
+  assert.strictEqual(validateOrderStateTransition('Cancelled', 'Confirmed').allowed, false);
+  assert.strictEqual(validateOrderStateTransition('Cancelled', 'Refunding').allowed, true);
+
+  // Pending/Reserving cannot jump to Refunding before payment stage
+  assert.strictEqual(validateOrderStateTransition('Pending', 'Refunding').allowed, false);
+  assert.strictEqual(validateOrderStateTransition('Reserving', 'Refunding').allowed, false);
 });
 
 test('Feature Boundaries - features do not import across feature directories', async () => {

@@ -8,7 +8,13 @@ import {
   ShipmentsService,
 } from '../../api';
 import { Badge, Button } from '../../shared/components';
-import { normalizeOrderState, OrderState } from '../../shared/types';
+import {
+  formatCurrencyAmount,
+  normalizeOrderState,
+  normalizeShipmentState,
+  OrderState,
+  validateOrderStateTransition,
+} from '../../shared/types';
 import { EmailPreviewCard } from './EmailPreviewCard';
 import { OrderStateVisualizer } from './OrderStateVisualizer';
 import { OrderTrackingTimeline } from './OrderTrackingTimeline';
@@ -52,9 +58,16 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
   const [pollIntervalMs, setPollIntervalMs] = useState<number>(1000);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const backoffRef = useRef<number>(1000);
 
   const orderState = normalizeOrderState(order.status ?? undefined);
+  const shipmentState = shipment ? normalizeShipmentState(shipment.status ?? undefined) : null;
+  const canCancelOrder = validateOrderStateTransition(
+    orderState,
+    'Cancelled',
+    shipmentState
+  ).allowed;
   const isDemoOrder = !order.id || order.id.startsWith('demo-');
 
   const refreshOrderArtifacts = useCallback(async () => {
@@ -195,6 +208,17 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
   }, [orderState, refreshOrderArtifacts]);
 
   const handleSimulateStateChange = (nextState: OrderState) => {
+    const validation = validateOrderStateTransition(orderState, nextState, shipmentState);
+    if (!validation.allowed) {
+      const msg = validation.reason ?? `Cannot transition from ${orderState} to ${nextState}.`;
+      setValidationError(msg);
+      if (onNotifyToast) {
+        onNotifyToast('Invalid State Transition', msg, 'danger');
+      }
+      return;
+    }
+
+    setValidationError(null);
     const updated: OrderDto = {
       ...order,
       status: nextState,
@@ -218,7 +242,18 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
 
   const handleCancelOrder = async () => {
     if (!order.id) return;
+    const validation = validateOrderStateTransition(orderState, 'Cancelled', shipmentState);
+    if (!validation.allowed) {
+      const msg = validation.reason ?? `Cannot cancel order in '${orderState}' state.`;
+      setValidationError(msg);
+      if (onNotifyToast) {
+        onNotifyToast('Cancellation Blocked', msg, 'danger');
+      }
+      return;
+    }
+
     setIsCancelling(true);
+    setValidationError(null);
     try {
       if (!isDemoOrder) {
         const cancelled = await OrdersService.cancelOrder({
@@ -227,10 +262,14 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
         });
         onOrderUpdated(cancelled);
       } else {
-        handleSimulateStateChange(orderState === 'Confirmed' ? 'Refunding' : 'Cancelled');
+        handleSimulateStateChange('Cancelled');
       }
-    } catch {
-      handleSimulateStateChange('Cancelled');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unable to cancel order in current status.';
+      setValidationError(msg);
+      if (onNotifyToast) {
+        onNotifyToast('Order Cancellation Rejected', msg, 'danger');
+      }
     } finally {
       setIsCancelling(false);
     }
@@ -267,10 +306,8 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
           </div>
           <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
             Total:{' '}
-            <strong>
-              {order.currency ?? 'USD'} {(order.totalAmount ?? 0).toFixed(2)}
-            </strong>{' '}
-            • Payment: <code>{order.paymentMethod ?? 'credit_card'}</code>
+            <strong>{formatCurrencyAmount(order.totalAmount ?? 0, order.currency, true)}</strong> •
+            Payment: <code>{order.paymentMethod ?? 'credit_card'}</code>
           </div>
         </div>
 
@@ -287,7 +324,12 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
             Refresh Now
           </Button>
           {orderState !== 'Cancelled' && (
-            <Button variant="danger" isLoading={isCancelling} onClick={handleCancelOrder}>
+            <Button
+              variant="danger"
+              isLoading={isCancelling}
+              disabled={!canCancelOrder}
+              onClick={handleCancelOrder}
+            >
               Cancel Order
             </Button>
           )}
@@ -300,10 +342,17 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
         onResolvedDemo={() => handleSimulateStateChange('Confirmed')}
       />
 
-      <OrderStateVisualizer status={orderState} onSimulateStateChange={handleSimulateStateChange} />
+      <OrderStateVisualizer
+        status={orderState}
+        shipmentStatus={shipmentState}
+        isMutating={isPolling || isCancelling}
+        validationError={validationError}
+        onSimulateStateChange={handleSimulateStateChange}
+      />
 
       <OrderTrackingTimeline
         shipment={shipment}
+        orderStatus={orderState}
         onShipmentUpdated={(updatedShipment) => {
           setShipment(updatedShipment);
           if (onNotifyToast) {

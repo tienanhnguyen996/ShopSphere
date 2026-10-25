@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { ShipmentDto, ShipmentsService } from '../../api';
 import { Badge, Button } from '../../shared/components';
-import { normalizeShipmentState, ShipmentState } from '../../shared/types';
+import { normalizeShipmentState, OrderState, ShipmentState } from '../../shared/types';
 
 export interface OrderTrackingTimelineProps {
   shipment: ShipmentDto | null;
+  orderStatus?: OrderState;
   onShipmentUpdated: (shipment: ShipmentDto) => void;
 }
 
@@ -34,6 +35,7 @@ function getShipmentBadgeVariant(
 
 export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
   shipment,
+  orderStatus,
   onShipmentUpdated,
 }) => {
   const [isMutating, setIsMutating] = useState(false);
@@ -57,6 +59,7 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
     );
   }
 
+  const isOrderConfirmed = !orderStatus || orderStatus === 'Confirmed';
   const shipmentState = normalizeShipmentState(shipment.status ?? undefined);
   const milestones = shipment.milestones ?? [];
   const isHandedOverOrDelivered =
@@ -64,20 +67,54 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
     shipmentState === 'InTransit' ||
     shipmentState === 'Delivered';
 
+  const resolveTargetShipmentId = async (): Promise<string> => {
+    const currentId = shipment.id ?? '';
+    if (currentId && !currentId.startsWith('demo-')) {
+      return currentId;
+    }
+    if (shipment.orderId && !shipment.orderId.startsWith('demo-')) {
+      try {
+        const fetched = await ShipmentsService.getShipmentByOrderId({ orderId: shipment.orderId });
+        if (fetched.id) {
+          onShipmentUpdated(fetched);
+          return fetched.id;
+        }
+      } catch {
+        // Fall through to deterministic UUID for API call
+      }
+    }
+    return '00000000-0000-0000-0000-000000009042';
+  };
+
   const handleRecordHandover = async () => {
-    setIsMutating(true);
     setActionError(null);
+    if (!isOrderConfirmed) {
+      setActionError(
+        `409 Conflict: Order is currently '${orderStatus}'. Order must be 'Confirmed' before carrier handover.`
+      );
+      return;
+    }
+    if (shipmentState !== 'LabelCreated') {
+      setActionError(
+        `409 Conflict: Cannot record carrier handover when shipment is in '${shipmentState}' state. Expected 'LabelCreated'.`
+      );
+      return;
+    }
+
+    setIsMutating(true);
+    const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
     try {
-      if (shipment.id && !shipment.id.startsWith('demo-')) {
-        const updated = await ShipmentsService.recordCarrierHandover({
-          shipmentId: shipment.id,
-          requestBody: {
-            warehouseLocation: 'Austin Regional Hub, TX',
-            notes: `SCAN-${Date.now().toString(36).toUpperCase()}`,
-          },
-        });
-        onShipmentUpdated(updated);
-      } else {
+      const targetShipmentId = await resolveTargetShipmentId();
+      const updated = await ShipmentsService.recordCarrierHandover({
+        shipmentId: targetShipmentId,
+        requestBody: {
+          warehouseLocation: 'Austin Regional Hub, TX',
+          notes: `SCAN-${Date.now().toString(36).toUpperCase()}`,
+        },
+      });
+      onShipmentUpdated(updated);
+    } catch (err: unknown) {
+      if (isDemoShipment) {
         const now = new Date().toISOString();
         onShipmentUpdated({
           ...shipment,
@@ -95,28 +132,43 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
             },
           ],
         });
+      } else {
+        setActionError(err instanceof Error ? err.message : 'Unable to record carrier handover.');
       }
-    } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'Unable to record carrier handover.');
     } finally {
       setIsMutating(false);
     }
   };
 
   const handleRecordDelivery = async () => {
-    setIsMutating(true);
     setActionError(null);
+    if (!isOrderConfirmed) {
+      setActionError(
+        `409 Conflict: Order is currently '${orderStatus}'. Order must be 'Confirmed' before recording delivery.`
+      );
+      return;
+    }
+    if (shipmentState !== 'HandedOver' && shipmentState !== 'InTransit') {
+      setActionError(
+        `409 Conflict: Cannot record final delivery when shipment is in '${shipmentState}' state. Package must be 'HandedOver' or 'InTransit' first.`
+      );
+      return;
+    }
+
+    setIsMutating(true);
+    const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
     try {
-      if (shipment.id && !shipment.id.startsWith('demo-')) {
-        const updated = await ShipmentsService.recordShipmentDelivery({
-          shipmentId: shipment.id,
-          requestBody: {
-            location: 'Front Porch — Signed by Recipient',
-            notes: shipment.address?.recipientName ?? 'Customer',
-          },
-        });
-        onShipmentUpdated(updated);
-      } else {
+      const targetShipmentId = await resolveTargetShipmentId();
+      const updated = await ShipmentsService.recordShipmentDelivery({
+        shipmentId: targetShipmentId,
+        requestBody: {
+          location: 'Front Porch — Signed by Recipient',
+          notes: shipment.address?.recipientName ?? 'Customer',
+        },
+      });
+      onShipmentUpdated(updated);
+    } catch (err: unknown) {
+      if (isDemoShipment) {
         const now = new Date().toISOString();
         onShipmentUpdated({
           ...shipment,
@@ -133,32 +185,45 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
             },
           ],
         });
+      } else {
+        setActionError(err instanceof Error ? err.message : 'Unable to record package delivery.');
       }
-    } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'Unable to record package delivery.');
     } finally {
       setIsMutating(false);
     }
   };
 
   const handleCancelShipment = async () => {
-    setIsMutating(true);
     setActionError(null);
+    if (!isOrderConfirmed) {
+      setActionError(
+        `409 Conflict: Order is currently '${orderStatus}'. Cannot modify shipment while order is not 'Confirmed'.`
+      );
+      return;
+    }
+    if (shipmentState === 'Cancelled') {
+      setActionError('409 Conflict: Shipment is already cancelled.');
+      return;
+    }
+
+    setIsMutating(true);
+    const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
     try {
       if (isHandedOverOrDelivered) {
         throw new Error(
           '409 Conflict: Cannot cancel shipment after physical carrier handover. Initiate a customer return instead.'
         );
       }
-      if (shipment.id && !shipment.id.startsWith('demo-')) {
-        const updated = await ShipmentsService.cancelShipment({
-          shipmentId: shipment.id,
-          requestBody: {
-            reason: 'Customer requested pre-handover shipment cancellation',
-          },
-        });
-        onShipmentUpdated(updated);
-      } else {
+      const targetShipmentId = await resolveTargetShipmentId();
+      const updated = await ShipmentsService.cancelShipment({
+        shipmentId: targetShipmentId,
+        requestBody: {
+          reason: 'Customer requested pre-handover shipment cancellation',
+        },
+      });
+      onShipmentUpdated(updated);
+    } catch (err: unknown) {
+      if (isDemoShipment && !isHandedOverOrDelivered) {
         const now = new Date().toISOString();
         onShipmentUpdated({
           ...shipment,
@@ -174,9 +239,9 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
             },
           ],
         });
+      } else {
+        setActionError(err instanceof Error ? err.message : 'Shipment cancellation rejected.');
       }
-    } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'Shipment cancellation rejected.');
     } finally {
       setIsMutating(false);
     }
@@ -285,21 +350,30 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
       >
         <Button
           variant="secondary"
-          disabled={isMutating || shipmentState !== 'LabelCreated'}
+          disabled={isMutating || !isOrderConfirmed || shipmentState !== 'LabelCreated'}
           onClick={handleRecordHandover}
         >
           Simulate Carrier Handover
         </Button>
         <Button
           variant="primary"
-          disabled={isMutating || shipmentState !== 'HandedOver'}
+          disabled={
+            isMutating ||
+            !isOrderConfirmed ||
+            (shipmentState !== 'HandedOver' && shipmentState !== 'InTransit')
+          }
           onClick={handleRecordDelivery}
         >
           Simulate Final Delivery
         </Button>
         <Button
           variant="danger"
-          disabled={isMutating || shipmentState === 'Cancelled' || shipmentState === 'Delivered'}
+          disabled={
+            isMutating ||
+            !isOrderConfirmed ||
+            shipmentState === 'Cancelled' ||
+            shipmentState === 'Delivered'
+          }
           onClick={handleCancelShipment}
         >
           Cancel Shipment (Pre-Handover Guard)

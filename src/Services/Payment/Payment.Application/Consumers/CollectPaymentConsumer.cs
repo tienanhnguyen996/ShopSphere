@@ -141,6 +141,10 @@ public class CollectPaymentConsumer :
 
                         await publishEndpoint.Publish(successEnvelope, ct);
                         await publishEndpoint.Publish(successEnvelope.Payload, ct);
+                        if (_dbContext is DbContext efSuccessDb && efSuccessDb.ChangeTracker.HasChanges())
+                        {
+                            await _dbContext.SaveChangesAsync(ct);
+                        }
                         return;
 
                     case PaymentProviderStatus.Failed:
@@ -160,6 +164,10 @@ public class CollectPaymentConsumer :
 
                         await publishEndpoint.Publish(rejectedEnvelope, ct);
                         await publishEndpoint.Publish(rejectedEnvelope.Payload, ct);
+                        if (_dbContext is DbContext efFailedDb && efFailedDb.ChangeTracker.HasChanges())
+                        {
+                            await _dbContext.SaveChangesAsync(ct);
+                        }
                         return;
 
                     case PaymentProviderStatus.Unknown:
@@ -181,6 +189,10 @@ public class CollectPaymentConsumer :
 
                         await publishEndpoint.Publish(resolutionEnvelope, ct);
                         await publishEndpoint.Publish(resolutionEnvelope.Payload, ct);
+                        if (_dbContext is DbContext efUnknownDb && efUnknownDb.ChangeTracker.HasChanges())
+                        {
+                            await _dbContext.SaveChangesAsync(ct);
+                        }
                         return;
                 }
             }

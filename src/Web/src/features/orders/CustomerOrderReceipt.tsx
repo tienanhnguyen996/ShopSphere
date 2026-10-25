@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -8,14 +8,21 @@ import {
   Copy,
   Check,
   ArrowRight,
+  RefreshCw,
 } from 'lucide-react';
-import { OrderDto, OrdersService, ShipmentDto } from '../../api';
+import { OrderDto, OrdersService, ShipmentDto, ShipmentsService } from '../../api';
 import { Badge, Button } from '../../shared/components';
-import { normalizeOrderState, normalizeShipmentState } from '../../shared/types';
+import {
+  formatCurrencyAmount,
+  normalizeOrderState,
+  normalizeShipmentState,
+} from '../../shared/types';
 
 export interface CustomerOrderReceiptProps {
   order: OrderDto;
+  orders?: OrderDto[];
   shipment?: ShipmentDto | null;
+  onSelectOrder?: (order: OrderDto) => void;
   onOrderUpdated?: (order: OrderDto) => void;
   onContinueShopping: () => void;
   onViewStaffDetails?: () => void;
@@ -23,16 +30,79 @@ export interface CustomerOrderReceiptProps {
 
 export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
   order,
+  orders,
   shipment,
+  onSelectOrder,
   onOrderUpdated,
   onContinueShopping,
   onViewStaffDetails,
 }) => {
   const [copiedId, setCopiedId] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [fetchedShipment, setFetchedShipment] = useState<ShipmentDto | null>(null);
+  const [fetchedOrders, setFetchedOrders] = useState<OrderDto[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const allOrders =
+    fetchedOrders.length > 0 ? fetchedOrders : orders && orders.length > 0 ? orders : [order];
+  const resolvedShipment = shipment ?? fetchedShipment;
   const orderState = normalizeOrderState(order.status ?? undefined);
-  const shipmentState = shipment ? normalizeShipmentState(shipment.status ?? undefined) : null;
+  const shipmentState = resolvedShipment
+    ? normalizeShipmentState(resolvedShipment.status ?? undefined)
+    : null;
+
+  const syncOrderAndShipment = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      try {
+        const pagedOrders = await OrdersService.getOrders({ page: 1, pageSize: 20 });
+        if (pagedOrders.items && pagedOrders.items.length > 0) {
+          setFetchedOrders(pagedOrders.items);
+        }
+      } catch {
+        // Keep current orders list if OrderService fails
+      }
+
+      if (!order.id || order.id.startsWith('demo-')) {
+        return;
+      }
+
+      try {
+        const latestOrder = await OrdersService.getOrderById({ id: order.id });
+        if (onOrderUpdated) {
+          onOrderUpdated(latestOrder);
+        }
+      } catch {
+        // Keep current order snapshot if OrderService fails
+      }
+
+      try {
+        const latestShipment = await ShipmentsService.getShipmentByOrderId({ orderId: order.id });
+        setFetchedShipment(latestShipment);
+      } catch {
+        setFetchedShipment(null);
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [onOrderUpdated, order.id]);
+
+  useEffect(() => {
+    void syncOrderAndShipment();
+  }, [syncOrderAndShipment, order.status]);
+
+  useEffect(() => {
+    if (!order.id || order.id.startsWith('demo-')) {
+      return;
+    }
+    if (orderState === 'Cancelled' || shipmentState === 'Delivered') {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void syncOrderAndShipment();
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [order.id, orderState, shipmentState, syncOrderAndShipment]);
 
   const handleCopyOrderId = () => {
     if (order.id) {
@@ -96,12 +166,95 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-xs border border-gray-100 p-6 sm:p-8 space-y-8">
+      {/* Customer Order History List */}
+      <div className="space-y-3 pb-6 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">My Orders ({allOrders.length})</h3>
+            <p className="text-xs text-gray-500">
+              Select an order below to view its receipt, items, and live delivery status.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto pr-1">
+          {allOrders.map((itemOrder) => {
+            const isSelected = itemOrder.id === order.id;
+            const itemState = normalizeOrderState(itemOrder.status ?? undefined);
+            const itemCount = (itemOrder.items ?? []).reduce(
+              (sum, i) => sum + (i.quantity ?? 1),
+              0
+            );
+            const createdLabel = itemOrder.createdAtUtc
+              ? new Date(itemOrder.createdAtUtc).toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'Recent';
+
+            return (
+              <button
+                key={itemOrder.id}
+                type="button"
+                onClick={() => {
+                  setFetchedShipment(null);
+                  if (onSelectOrder) {
+                    onSelectOrder(itemOrder);
+                  } else if (onOrderUpdated) {
+                    onOrderUpdated(itemOrder);
+                  }
+                }}
+                className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+                  isSelected
+                    ? 'border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-500/20'
+                    : 'border-gray-200 hover:border-gray-300 bg-gray-50/40 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold font-mono text-gray-900">
+                    #{itemOrder.id?.slice(0, 8) ?? 'N/A'}
+                  </span>
+                  <Badge
+                    variant={
+                      itemState === 'Confirmed'
+                        ? 'success'
+                        : itemState === 'Cancelled' || itemState === 'Refunding'
+                          ? 'danger'
+                          : itemState === 'PaymentUnknown'
+                            ? 'warning'
+                            : 'info'
+                    }
+                  >
+                    {itemState}
+                  </Badge>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
+                  <span>
+                    {itemCount} {itemCount === 1 ? 'item' : 'items'} &middot; {createdLabel}
+                  </span>
+                  <span className="font-bold text-gray-900">
+                    {formatCurrencyAmount(itemOrder.totalAmount ?? 0, itemOrder.currency, false)}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
         <div>
           <div className="flex items-center space-x-2">
             <h2 className="text-xl font-bold text-gray-900">
-              {isCancelled ? 'Order Cancelled' : 'Order Received'}
+              {isCancelled
+                ? 'Order Cancelled'
+                : shipmentState === 'Delivered'
+                  ? 'Order Delivered'
+                  : shipmentState === 'HandedOver' || shipmentState === 'InTransit'
+                    ? 'Order Shipped'
+                    : 'Order Received'}
             </h2>
             <Badge
               variant={
@@ -114,13 +267,17 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
                       : 'info'
               }
             >
-              {orderState === 'Confirmed'
-                ? 'Order Confirmed'
-                : orderState === 'PaymentUnknown'
-                  ? 'Verifying Payment'
-                  : orderState === 'Reserving' || orderState === 'Paying'
-                    ? 'Processing'
-                    : orderState}
+              {shipmentState === 'Delivered'
+                ? 'Delivered'
+                : shipmentState === 'HandedOver' || shipmentState === 'InTransit'
+                  ? 'Shipped'
+                  : orderState === 'Confirmed'
+                    ? 'Order Confirmed'
+                    : orderState === 'PaymentUnknown'
+                      ? 'Verifying Payment'
+                      : orderState === 'Reserving' || orderState === 'Paying'
+                        ? 'Processing'
+                        : orderState}
             </Badge>
           </div>
           <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
@@ -148,6 +305,15 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
         </div>
 
         <div className="flex items-center space-x-3">
+          <Button
+            variant="outline"
+            size="sm"
+            isLoading={isRefreshing}
+            onClick={() => void syncOrderAndShipment()}
+          >
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+            Refresh Status
+          </Button>
           <Button variant="outline" size="sm" onClick={onContinueShopping}>
             Continue Shopping
             <ArrowRight className="w-4 h-4 ml-1.5" />
@@ -166,16 +332,24 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
           <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h3 className="text-sm font-bold text-emerald-900">
-              {orderState === 'Confirmed'
-                ? 'Thank you! Your order is confirmed.'
-                : 'Your order is being processed.'}
+              {shipmentState === 'Delivered'
+                ? 'Your package has been delivered!'
+                : shipmentState === 'HandedOver' || shipmentState === 'InTransit'
+                  ? 'Your order is on the way!'
+                  : orderState === 'Confirmed'
+                    ? 'Thank you! Your order is confirmed.'
+                    : 'Your order is being processed.'}
             </h3>
             <p className="text-xs text-emerald-800 leading-relaxed">
-              {orderState === 'Confirmed'
-                ? 'We have sent an order confirmation to your email. Your items will be packaged and dispatched promptly.'
-                : orderState === 'PaymentUnknown'
-                  ? 'We are confirming the payment with your financial provider. Please do not re-submit; your order is safe.'
-                  : 'We are completing the security checks and payment authorization for your order.'}
+              {shipmentState === 'Delivered'
+                ? 'Your shipment was delivered and signed for at your destination address.'
+                : shipmentState === 'HandedOver' || shipmentState === 'InTransit'
+                  ? 'Your package has been handed over to the carrier and is in transit to your delivery address.'
+                  : orderState === 'Confirmed'
+                    ? 'We have sent an order confirmation to your email. Your items will be packaged and dispatched promptly.'
+                    : orderState === 'PaymentUnknown'
+                      ? 'We are confirming the payment with your financial provider. Please do not re-submit; your order is safe.'
+                      : 'We are completing the security checks and payment authorization for your order.'}
             </p>
           </div>
         </div>
@@ -248,7 +422,7 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
       )}
 
       {/* Shipment & Tracking Information */}
-      {(order.trackingNumber || shipment?.trackingNumber) && (
+      {(order.trackingNumber || resolvedShipment?.trackingNumber) && (
         <div className="bg-gray-50 border border-gray-200/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -259,16 +433,24 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
                 Carrier & Tracking
               </span>
               <span className="text-sm font-bold text-gray-900">
-                {shipment?.carrier ?? 'Express Delivery'} &middot;{' '}
+                {resolvedShipment?.carrier ?? 'Express Delivery'} &middot;{' '}
                 <span className="font-mono text-blue-600">
-                  {order.trackingNumber ?? shipment?.trackingNumber}
+                  {order.trackingNumber ?? resolvedShipment?.trackingNumber}
                 </span>
               </span>
             </div>
           </div>
 
           <div className="text-xs text-gray-500">
-            Estimated Delivery: <strong className="text-gray-900">2–4 business days</strong>
+            {shipmentState === 'Delivered' ? (
+              <span className="text-green-700 font-bold">✓ Delivered to Recipient</span>
+            ) : shipmentState === 'HandedOver' || shipmentState === 'InTransit' ? (
+              <span className="text-blue-700 font-bold">In Transit with Carrier</span>
+            ) : (
+              <>
+                Estimated Delivery: <strong className="text-gray-900">2–4 business days</strong>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -295,10 +477,19 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
               </div>
               <div className="text-right">
                 <span className="text-sm font-bold text-gray-900 block">
-                  ${(item.lineTotal ?? (item.unitPrice ?? 0) * (item.quantity ?? 1)).toFixed(2)}
+                  {formatCurrencyAmount(
+                    item.lineTotal ?? (item.unitPrice ?? 0) * (item.quantity ?? 1),
+                    item.currency ?? order.currency,
+                    false
+                  )}
                 </span>
                 <span className="text-xs text-gray-400">
-                  ${(item.unitPrice ?? 0).toFixed(2)} each
+                  {formatCurrencyAmount(
+                    item.unitPrice ?? 0,
+                    item.currency ?? order.currency,
+                    false
+                  )}{' '}
+                  each
                 </span>
               </div>
             </div>
@@ -349,9 +540,7 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
           <div className="space-y-1.5 text-xs text-gray-600">
             <div className="flex justify-between">
               <span>Items Total:</span>
-              <span>
-                ${(order.totalAmount ?? 0).toFixed(2)} {order.currency ?? 'USD'}
-              </span>
+              <span>{formatCurrencyAmount(order.totalAmount ?? 0, order.currency, false)}</span>
             </div>
             <div className="flex justify-between text-green-600">
               <span>Shipping:</span>
@@ -359,9 +548,7 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
             </div>
             <div className="border-t border-gray-200 pt-2 flex justify-between text-sm font-bold text-gray-900">
               <span>Total Paid:</span>
-              <span>
-                ${(order.totalAmount ?? 0).toFixed(2)} {order.currency ?? 'USD'}
-              </span>
+              <span>{formatCurrencyAmount(order.totalAmount ?? 0, order.currency, true)}</span>
             </div>
           </div>
 

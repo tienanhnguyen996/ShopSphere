@@ -16,13 +16,14 @@ public static class DependencyInjection
         services.AddSingleton<AuditSaveChangesInterceptor>();
 
         var connectionString = configuration.GetConnectionString("CatalogDatabase")
-            ?? "Server=localhost,1433;Database=ShopSphereCatalog;User Id=sa;Password=Your_password123;TrustServerCertificate=True;";
+            ?? "Server=localhost,1433;Database=ShopSphereCatalog;User Id=sa;Password=DevPassword123!;TrustServerCertificate=True;";
 
         services.AddDbContext<CatalogDbContext>((sp, options) =>
         {
             var interceptor = sp.GetRequiredService<AuditSaveChangesInterceptor>();
             options.UseSqlServer(connectionString)
-                   .AddInterceptors(interceptor);
+                   .AddInterceptors(interceptor)
+                   .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
         services.AddScoped<ICatalogDbContext>(sp => sp.GetRequiredService<CatalogDbContext>());

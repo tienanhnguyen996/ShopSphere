@@ -165,4 +165,13 @@ public class RealPaymentProviderClientsTests
         result.Status.Should().Be(PaymentProviderStatus.Success);
         result.ProviderTransactionId.Should().StartWith("mock_tx_");
     }
+
+    [Fact]
+    public void MoMoClient_ConvertToVnd_AppliesHardcodedUsdRateAndClampsToSandboxBounds()
+    {
+        MoMoPaymentProviderClient.ConvertToVnd(100m, "USD").Should().Be(2_540_000L);
+        MoMoPaymentProviderClient.ConvertToVnd(250_000m, "VND").Should().Be(250_000L);
+        MoMoPaymentProviderClient.ConvertToVnd(0.01m, "USD").Should().Be(MoMoPaymentProviderClient.MinMoMoAmountVnd);
+        MoMoPaymentProviderClient.ConvertToVnd(5_000m, "USD").Should().Be(MoMoPaymentProviderClient.MaxMoMoAmountVnd);
+    }
 }
