@@ -67,10 +67,10 @@ resource "google_cloud_run_v2_service" "service" {
       }
 
       startup_probe {
-        initial_delay_seconds = 5
-        timeout_seconds       = 3
+        initial_delay_seconds = 10
+        timeout_seconds       = 5
         period_seconds        = 10
-        failure_threshold     = 3
+        failure_threshold     = 10
         http_get {
           path = "/health"
           port = var.container_port
@@ -78,8 +78,10 @@ resource "google_cloud_run_v2_service" "service" {
       }
 
       liveness_probe {
-        timeout_seconds = 3
-        period_seconds  = 15
+        initial_delay_seconds = 15
+        timeout_seconds       = 5
+        period_seconds        = 15
+        failure_threshold     = 3
         http_get {
           path = "/health"
           port = var.container_port

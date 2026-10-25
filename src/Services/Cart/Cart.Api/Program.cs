@@ -46,6 +46,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapCartEndpoints();
+app.MapHealthChecks("/health");
 
 app.Run();
 

@@ -213,7 +213,7 @@ module "services" {
       RabbitMQ__Username     = "admin"
       RabbitMQ__Password     = random_password.rabbitmq_admin.result
     },
-    each.key == "cart" ? {
+    contains(["cart", "catalog"], each.key) ? {
       ConnectionStrings__Redis = "${module.memorystore.host}:${module.memorystore.port},password=${module.memorystore.auth_string},ssl=False,abortConnect=False"
     } : {}
   )
