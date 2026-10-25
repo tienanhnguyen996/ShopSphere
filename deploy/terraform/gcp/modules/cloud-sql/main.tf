@@ -31,9 +31,8 @@ resource "google_sql_database_instance" "instance" {
     disk_autoresize   = true
 
     ip_configuration {
-      ipv4_enabled                                  = false
-      private_network                               = var.vpc_id
-      enable_private_path_for_google_cloud_services = true
+      ipv4_enabled    = false
+      private_network = var.vpc_id
     }
 
     backup_configuration {

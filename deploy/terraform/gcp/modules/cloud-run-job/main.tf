@@ -3,6 +3,12 @@ resource "google_cloud_run_v2_job" "migration_job" {
   location = var.region
   project  = var.project_id
 
+  lifecycle {
+    ignore_changes = [
+      template[0].template[0].containers[0].image
+    ]
+  }
+
   template {
     template {
       service_account = var.service_account_email

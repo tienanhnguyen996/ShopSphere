@@ -87,17 +87,20 @@ resource "google_secret_manager_secret_version" "db_conn" {
   for_each    = module.secrets.db_secret_ids
   secret      = each.value
   secret_data = module.cloud_sql.connection_strings[each.key]
+  depends_on  = [module.secrets]
 }
 
 resource "google_secret_manager_secret_version" "rabbitmq_conn" {
   for_each    = module.secrets.rabbitmq_secret_ids
   secret      = each.value
   secret_data = "amqp://admin:${random_password.rabbitmq_admin.result}@rabbitmq.shopsphere.internal:5672/"
+  depends_on  = [module.secrets]
 }
 
 resource "google_secret_manager_secret_version" "redis_auth" {
   secret      = module.secrets.redis_auth_secret_id
   secret_data = module.memorystore.auth_string
+  depends_on  = [module.secrets]
 }
 
 # 9. Cloud Run Service: YARP API Gateway
@@ -120,6 +123,10 @@ module "gateway" {
   env_vars = {
     ASPNETCORE_ENVIRONMENT = "Development"
   }
+
+  depends_on = [
+    module.iam_wif,
+  ]
 }
 
 # 10. Cloud Run Services: Microservices Fleet
@@ -210,21 +217,33 @@ module "services" {
       ConnectionStrings__Redis = "${module.memorystore.host}:${module.memorystore.port},password=${module.memorystore.auth_string},ssl=False,abortConnect=False"
     } : {}
   )
+
+  depends_on = [
+    module.iam_wif,
+    google_secret_manager_secret_version.db_conn,
+    google_secret_manager_secret_version.rabbitmq_conn,
+    google_secret_manager_secret_version.redis_auth,
+  ]
 }
 
 # 11. Cloud Run Jobs: EF Core Migration Runners
 module "migration_jobs" {
-  for_each                    = local.microservices
+  for_each                    = { for k, v in local.microservices : k => v if k != "cart" }
   source                      = "../../modules/cloud-run-job"
   project_id                  = var.project_id
   region                      = var.region
   environment                 = var.environment
   job_name                    = "${each.key}-migrate"
-  image                       = "${module.artifact_registry.repository_url}/${each.key}-migrations:latest"
+  image                       = "us-docker.pkg.dev/cloudrun/container/hello"
   service_account_email       = module.iam_wif.services_service_account_email
   vpc_id                      = module.networking.vpc_id
   app_subnet_id               = module.networking.app_subnet_id
   secret_connection_string_id = module.secrets.db_secret_ids[each.key]
+
+  depends_on = [
+    module.iam_wif,
+    google_secret_manager_secret_version.db_conn,
+  ]
 }
 
 # 12. External Load Balancer, Cloud Armor WAF & GCS Static React SPA

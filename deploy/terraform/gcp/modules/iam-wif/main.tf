@@ -69,3 +69,34 @@ resource "google_project_iam_member" "services_monitoring" {
   role    = "roles/monitoring.metricWriter"
   member  = "serviceAccount:${google_service_account.services_sa.email}"
 }
+
+resource "google_project_iam_member" "services_secret_accessor" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.services_sa.email}"
+}
+
+resource "google_project_iam_member" "services_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.services_sa.email}"
+}
+
+# Grant Observability roles to gateway SA
+resource "google_project_iam_member" "gateway_trace" {
+  project = var.project_id
+  role    = "roles/cloudtrace.agent"
+  member  = "serviceAccount:${google_service_account.gateway_sa.email}"
+}
+
+resource "google_project_iam_member" "gateway_logging" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.gateway_sa.email}"
+}
+
+resource "google_project_iam_member" "gateway_monitoring" {
+  project = var.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${google_service_account.gateway_sa.email}"
+}

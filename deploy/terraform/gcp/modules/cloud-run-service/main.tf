@@ -4,6 +4,14 @@ resource "google_cloud_run_v2_service" "service" {
   project  = var.project_id
   ingress  = var.ingress
 
+  lifecycle {
+    ignore_changes = [
+      client,
+      client_version,
+      template[0].containers[0].image
+    ]
+  }
+
   template {
     service_account       = var.service_account_email
     execution_environment = "EXECUTION_ENVIRONMENT_GEN2"

@@ -57,47 +57,11 @@ jobs:
         run: |
           dotnet test --filter "Category!=Integration" --configuration Release
 
-  terraform-plan-apply:
-    name: Terraform Plan & Apply
+  build-and-push-containers:
+    name: Build & Push Containers
     needs: validate
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to GCP via Workload Identity
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.16.5
-          terraform_wrapper: false
-
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive deploy/terraform/gcp/
-
-      - name: Terraform Init & Plan
-        working-directory: deploy/terraform/gcp/environments/dev
-        run: |
-          terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}"
-          terraform validate
-          terraform plan -var="project_id=${{ env.PROJECT_ID }}" -out=tfplan
-
-      - name: Terraform Apply
-        if: github.event.inputs.apply_terraform == 'true' || github.event.inputs.apply_terraform == true
-        working-directory: deploy/terraform/gcp/environments/dev
-        run: |
-          terraform apply -auto-approve tfplan
-
-  build-and-deploy:
-    name: Build Containers & Deploy to Cloud Run
-    needs: terraform-plan-apply
-    runs-on: ubuntu-latest
-    if: github.event.inputs.deploy_containers == true || github.event.inputs.deploy_containers == 'true'
+    if: github.event.inputs.deploy_containers == true || github.event.inputs.deploy_containers == 'true' || github.event.inputs.apply_terraform == true || github.event.inputs.apply_terraform == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -110,6 +74,15 @@ jobs:
 
       - name: Setup Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+
+      - name: Ensure Artifact Registry Repository Exists
+        run: |
+          gcloud artifacts repositories describe ${{ env.GAR_REPO }} --location=${{ env.REGION }} --quiet || \
+          gcloud artifacts repositories create ${{ env.GAR_REPO }} \
+            --repository-format=docker \
+            --location=${{ env.REGION }} \
+            --description="Docker container registry for ShopSphere services" \
+            --quiet
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
@@ -148,15 +121,70 @@ jobs:
             docker push "$LATEST"
           done
 
-      - name: Update Cloud Run Services
+      - name: Update Cloud Run Services directly (if Terraform skipped)
+        if: github.event.inputs.apply_terraform == false || github.event.inputs.apply_terraform == 'false'
         run: |
           for svc in gateway catalog cart identity inventory payment order shipping notification; do
-            echo "Updating Cloud Run service ${svc}-dev..."
-            gcloud run deploy "${svc}-dev" \
+            echo "Updating Cloud Run service shopsphere-${svc}-dev..."
+            gcloud run deploy "shopsphere-${svc}-dev" \
               --image="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.GAR_REPO }}/${svc}:${{ github.sha }}" \
               --region="${{ env.REGION }}" \
               --quiet || true
           done
+
+  terraform-plan-apply:
+    name: Terraform Plan & Apply
+    needs: [validate, build-and-push-containers]
+    if: github.event.inputs.apply_terraform == true || github.event.inputs.apply_terraform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via Workload Identity
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.5
+          terraform_wrapper: false
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive deploy/terraform/gcp/
+
+      - name: Terraform Init & Plan
+        working-directory: deploy/terraform/gcp/environments/dev
+        run: |
+          terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}"
+          terraform validate
+          terraform plan -var="project_id=${{ env.PROJECT_ID }}" -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: deploy/terraform/gcp/environments/dev
+        run: |
+          terraform apply -auto-approve tfplan
+
+  deploy-frontend:
+    name: Build & Deploy Frontend Web SPA
+    needs: [terraform-plan-apply, build-and-push-containers]
+    if: always() && (github.event.inputs.deploy_containers == true || github.event.inputs.deploy_containers == 'true') && (needs.terraform-plan-apply.result == 'success' || needs.terraform-plan-apply.result == 'skipped') && needs.build-and-push-containers.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP via Workload Identity
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Setup Node
         uses: actions/setup-node@v4
