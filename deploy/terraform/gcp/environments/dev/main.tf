@@ -156,7 +156,7 @@ module "services" {
   region                = var.region
   environment           = var.environment
   service_name          = each.key
-  image                 = "${module.artifact_registry.repository_url}/${each.key}:latest"
+  image                 = "${module.artifact_registry.repository_url}/${each.key}:${var.image_tag}"
   service_account_email = module.iam_wif.services_service_account_email
   ingress               = "INGRESS_TRAFFIC_INTERNAL_ONLY"
   vpc_id                = module.networking.vpc_id
@@ -208,7 +208,7 @@ module "gateway" {
   region                = var.region
   environment           = var.environment
   service_name          = "gateway"
-  image                 = "${module.artifact_registry.repository_url}/gateway:latest"
+  image                 = "${module.artifact_registry.repository_url}/gateway:${var.image_tag}"
   service_account_email = module.iam_wif.gateway_service_account_email
   ingress               = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
   vpc_id                = module.networking.vpc_id

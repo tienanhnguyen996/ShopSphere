@@ -161,7 +161,7 @@ jobs:
         run: |
           terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}"
           terraform validate
-          terraform plan -var="project_id=${{ env.PROJECT_ID }}" -out=tfplan
+          terraform plan -var="project_id=${{ env.PROJECT_ID }}" -var="image_tag=${{ github.sha }}" -out=tfplan
 
       - name: Terraform Apply
         working-directory: deploy/terraform/gcp/environments/dev

@@ -32,3 +32,9 @@ variable "notification_email" {
   description = "Email address for monitoring alert notifications."
   default     = ""
 }
+
+variable "image_tag" {
+  type        = string
+  description = "Container image tag to deploy for services."
+  default     = "latest"
+}
