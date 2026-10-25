@@ -2,15 +2,29 @@ import { OpenAPI as catalogOpenAPI } from './generated/catalog/core/OpenAPI.ts';
 import { OpenAPI as cartOpenAPI } from './generated/cart/core/OpenAPI.ts';
 import { OpenAPI as inventoryOpenAPI } from './generated/inventory/core/OpenAPI.ts';
 import { OpenAPI as paymentOpenAPI } from './generated/payment/core/OpenAPI.ts';
+import { OpenAPI as orderOpenAPI } from './generated/order/core/OpenAPI.ts';
+import { OpenAPI as shippingOpenAPI } from './generated/shipping/core/OpenAPI.ts';
+import { OpenAPI as notificationOpenAPI } from './generated/notification/core/OpenAPI.ts';
 import type { OpenAPIConfig } from './generated/catalog/core/OpenAPI.ts';
 
-export { catalogOpenAPI, cartOpenAPI, inventoryOpenAPI, paymentOpenAPI };
+export {
+  catalogOpenAPI,
+  cartOpenAPI,
+  inventoryOpenAPI,
+  paymentOpenAPI,
+  orderOpenAPI,
+  shippingOpenAPI,
+  notificationOpenAPI,
+};
 
 export const apiConfigs: OpenAPIConfig[] = [
   catalogOpenAPI,
   cartOpenAPI,
   inventoryOpenAPI,
   paymentOpenAPI,
+  orderOpenAPI,
+  shippingOpenAPI,
+  notificationOpenAPI,
 ];
 
 let activeCorrelationId: string | undefined;
