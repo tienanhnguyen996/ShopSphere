@@ -1,9 +1,17 @@
-import React from 'react';
-import { OrderState } from '../../shared/types';
+import React, { useEffect, useState } from 'react';
+import {
+  getAllowedNextOrderStates,
+  OrderState,
+  ShipmentState,
+  validateOrderStateTransition,
+} from '../../shared/types';
 import { Badge, OrderStatusBadge } from '../../shared/components';
 
 export interface OrderStateVisualizerProps {
   status: OrderState;
+  shipmentStatus?: ShipmentState | null;
+  isMutating?: boolean;
+  validationError?: string | null;
   onSimulateStateChange?: (state: OrderState) => void;
 }
 
@@ -97,9 +105,21 @@ function getOrderStateMetadata(status: OrderState): {
 
 export const OrderStateVisualizer: React.FC<OrderStateVisualizerProps> = ({
   status,
+  shipmentStatus,
+  isMutating = false,
+  validationError,
   onSimulateStateChange,
 }) => {
+  const [localError, setLocalError] = useState<string | null>(null);
   const metadata = getOrderStateMetadata(status);
+  const allowedNextStates = getAllowedNextOrderStates(status).filter(
+    (candidate) => validateOrderStateTransition(status, candidate, shipmentStatus).allowed
+  );
+  const displayedError = validationError ?? localError;
+
+  useEffect(() => {
+    setLocalError(null);
+  }, [status, shipmentStatus]);
 
   return (
     <div
@@ -154,37 +174,114 @@ export const OrderStateVisualizer: React.FC<OrderStateVisualizerProps> = ({
         <code style={{ fontWeight: 600 }}>{metadata.sagaAction}</code>
       </div>
 
+      {displayedError && (
+        <div
+          role="alert"
+          style={{
+            padding: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            fontSize: '12px',
+            fontWeight: 600,
+          }}
+        >
+          {displayedError}
+        </div>
+      )}
+
       <div
         style={{
           display: 'flex',
-          flexWrap: 'wrap',
+          flexDirection: 'column',
           gap: '8px',
-          paddingTop: '6px',
+          paddingTop: '8px',
           borderTop: '1px dashed #cbd5e1',
         }}
       >
-        {ALL_STATES.map((candidate) => {
-          const isCurrent = candidate === status;
-          return (
-            <button
-              key={candidate}
-              type="button"
-              onClick={() => onSimulateStateChange && onSimulateStateChange(candidate)}
-              style={{
-                padding: '6px 10px',
-                borderRadius: '8px',
-                border: isCurrent ? `2px solid ${metadata.accentColor}` : '1px solid #cbd5e1',
-                backgroundColor: isCurrent ? '#0f172a' : '#ffffff',
-                color: isCurrent ? '#ffffff' : '#334155',
-                fontSize: '12px',
-                fontWeight: isCurrent ? 700 : 500,
-                cursor: onSimulateStateChange ? 'pointer' : 'default',
-              }}
-            >
-              {candidate}
-            </button>
-          );
-        })}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '6px',
+            fontSize: '11px',
+            color: '#475569',
+          }}
+        >
+          <span>
+            <strong>Valid Next Transitions from {status}:</strong>{' '}
+            {allowedNextStates.length > 0
+              ? allowedNextStates.join(', ')
+              : shipmentStatus === 'HandedOver' ||
+                  shipmentStatus === 'InTransit' ||
+                  shipmentStatus === 'Delivered'
+                ? `Locked (Shipment already ${shipmentStatus})`
+                : 'None (Terminal State)'}
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px',
+          }}
+        >
+          {ALL_STATES.map((candidate) => {
+            const isCurrent = candidate === status;
+            const validation = validateOrderStateTransition(status, candidate, shipmentStatus);
+            const isDisabled =
+              isCurrent || !validation.allowed || isMutating || !onSimulateStateChange;
+
+            return (
+              <button
+                key={candidate}
+                type="button"
+                disabled={isDisabled}
+                title={
+                  isCurrent
+                    ? `Current order status: ${status}`
+                    : validation.allowed
+                      ? `Transition order from ${status} to ${candidate}`
+                      : validation.reason
+                }
+                onClick={() => {
+                  if (!onSimulateStateChange) return;
+                  if (!validation.allowed) {
+                    setLocalError(validation.reason ?? 'Invalid state transition.');
+                    return;
+                  }
+                  setLocalError(null);
+                  onSimulateStateChange(candidate);
+                }}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  border: isCurrent
+                    ? `2px solid ${metadata.accentColor}`
+                    : validation.allowed
+                      ? '1px solid #64748b'
+                      : '1px solid #e2e8f0',
+                  backgroundColor: isCurrent
+                    ? '#0f172a'
+                    : validation.allowed
+                      ? '#ffffff'
+                      : '#f1f5f9',
+                  color: isCurrent ? '#ffffff' : validation.allowed ? '#0f172a' : '#94a3b8',
+                  fontSize: '12px',
+                  fontWeight: isCurrent || validation.allowed ? 700 : 500,
+                  cursor: isDisabled ? 'not-allowed' : 'pointer',
+                  opacity: isCurrent || validation.allowed ? 1 : 0.6,
+                }}
+              >
+                {candidate}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

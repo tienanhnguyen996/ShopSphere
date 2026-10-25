@@ -14,9 +14,11 @@ import { Badge, Button } from '../shared/components';
 import {
   formatCurrencyAmount,
   normalizeOrderState,
+  normalizeShipmentState,
   OrderState,
   Product,
   StockSummary,
+  validateOrderStateTransition,
 } from '../shared/types';
 import {
   EmailPreviewCard,
@@ -58,8 +60,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   const [adjustQty, setAdjustQty] = useState<number>(5);
   const [isAdjustingStock, setIsAdjustingStock] = useState<boolean>(false);
   const [isSyncingArtifacts, setIsSyncingArtifacts] = useState<boolean>(false);
+  const [stateTransitionError, setStateTransitionError] = useState<string | null>(null);
 
   const orderState = normalizeOrderState(order.status ?? undefined);
+  const shipmentState = shipment ? normalizeShipmentState(shipment.status ?? undefined) : null;
   const isDemoOrder = !order.id || order.id.startsWith('demo-');
 
   const buildFallbackShipment = useCallback(
@@ -202,6 +206,16 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
   }, [order.id, orderState]);
 
   const handleProvisionShipmentLabel = () => {
+    if (orderState !== 'Confirmed') {
+      if (onNotifyToast) {
+        onNotifyToast(
+          'Invalid Order State',
+          `Cannot provision carrier label while order is '${orderState}'. Order must be 'Confirmed' first.`,
+          'danger'
+        );
+      }
+      return;
+    }
     const generated = buildFallbackShipment(order);
     setShipment(generated);
     const updatedOrder: OrderDto = {
@@ -221,7 +235,44 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
     }
   };
 
-  const handleSimulateStateChange = (nextState: OrderState) => {
+  const handleSimulateStateChange = async (nextState: OrderState) => {
+    const validation = validateOrderStateTransition(orderState, nextState, shipmentState);
+    if (!validation.allowed) {
+      const msg = validation.reason ?? `Cannot transition from '${orderState}' to '${nextState}'.`;
+      setStateTransitionError(msg);
+      if (onNotifyToast) {
+        onNotifyToast('[Admin] Invalid State Transition', msg, 'danger');
+      }
+      return;
+    }
+
+    setStateTransitionError(null);
+    if (nextState === 'Cancelled' && order.id && !isDemoOrder && orderState !== 'Refunding') {
+      try {
+        const cancelledOrder = await OrdersService.cancelOrder({
+          id: order.id,
+          requestBody: { reason: 'Admin initiated order cancellation from Saga Lifecycle tab' },
+        });
+        onOrderUpdated(cancelledOrder);
+        if (onNotifyToast) {
+          onNotifyToast(
+            '[Admin] Order Cancelled',
+            `Order ${order.id} cancelled via OrderService.`,
+            'danger'
+          );
+        }
+        return;
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error ? err.message : 'OrderService rejected cancellation request.';
+        setStateTransitionError(msg);
+        if (onNotifyToast) {
+          onNotifyToast('[Admin] Cancellation Rejected', msg, 'danger');
+        }
+        return;
+      }
+    }
+
     const updated: OrderDto = {
       ...order,
       status: nextState,
@@ -472,7 +523,10 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="bg-white rounded-2xl p-6 text-slate-900 shadow-sm border border-slate-200">
               <OrderStateVisualizer
                 status={orderState}
-                onSimulateStateChange={handleSimulateStateChange}
+                shipmentStatus={shipmentState}
+                isMutating={isSyncingArtifacts}
+                validationError={stateTransitionError}
+                onSimulateStateChange={(nextState) => void handleSimulateStateChange(nextState)}
               />
             </div>
           </div>
@@ -630,6 +684,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
                   <Button
                     variant="primary"
                     size="sm"
+                    disabled={orderState !== 'Confirmed'}
                     onClick={handleProvisionShipmentLabel}
                     className="bg-indigo-600 hover:bg-indigo-500 text-white"
                   >
@@ -643,6 +698,7 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
             <div className="bg-white rounded-2xl p-6 text-slate-900 shadow-sm border border-slate-200">
               <OrderTrackingTimeline
                 shipment={shipment}
+                orderStatus={orderState}
                 onShipmentUpdated={(updatedShipment) => {
                   setShipment(updatedShipment);
                   if (onNotifyToast) {
