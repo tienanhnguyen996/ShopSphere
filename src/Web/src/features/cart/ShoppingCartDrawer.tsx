@@ -69,7 +69,7 @@ export const ShoppingCartDrawer: React.FC<ShoppingCartDrawerProps> = ({
               <ShoppingBag className="w-10 h-10 text-gray-300 mx-auto" />
               <p className="text-sm font-medium text-gray-700">Your cart is empty</p>
               <p className="text-xs text-gray-500">
-                Add items from the product catalog to generate a verified checkout quote.
+                Explore our catalog to find your favorite products.
               </p>
             </div>
           ) : (
@@ -94,9 +94,6 @@ export const ShoppingCartDrawer: React.FC<ShoppingCartDrawerProps> = ({
                             <span className="text-sm font-semibold text-gray-900">
                               {quoteItem?.productName ?? sku}
                             </span>
-                            {quoteItem?.priceVersion !== undefined ? (
-                              <Badge variant="default">v{quoteItem.priceVersion}</Badge>
-                            ) : null}
                           </div>
                           <span className="text-xs font-mono text-gray-400">{sku}</span>
                         </div>

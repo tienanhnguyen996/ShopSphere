@@ -38,16 +38,16 @@ export const PriceVerificationBanner: React.FC<PriceVerificationBannerProps> = (
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-gray-800">
-                {isValid ? 'Live Catalog Price Quote Verified' : 'Cart Quote Requires Attention'}
+                {isValid ? 'Best Price Guarantee' : 'Cart Requires Attention'}
               </span>
               <Badge variant={isValid ? 'success' : 'warning'}>
-                {isValid ? 'Verified' : 'Price / Status Alert'}
+                {isValid ? 'Guaranteed' : 'Update Notice'}
               </Badge>
             </div>
             <p className="text-xs text-gray-600 mt-0.5">
               {isValid
-                ? 'All cart line items are active and locked to their current Catalog price versions.'
-                : 'One or more items changed price or status in CatalogService.'}
+                ? 'Your items and prices are locked in and reserved for checkout.'
+                : 'One or more items in your cart had a price or availability update.'}
             </p>
           </div>
         </div>
@@ -57,7 +57,7 @@ export const PriceVerificationBanner: React.FC<PriceVerificationBannerProps> = (
           size="sm"
           onClick={onRefreshQuote}
           disabled={isVerifying}
-          aria-label="Re-verify cart prices"
+          aria-label="Refresh cart prices"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isVerifying ? 'animate-spin' : ''}`} />
         </Button>
@@ -74,7 +74,7 @@ export const PriceVerificationBanner: React.FC<PriceVerificationBannerProps> = (
       {items.length > 0 ? (
         <div className="pt-2 border-t border-emerald-200/60 flex items-center justify-between text-xs">
           <span className="text-gray-600">
-            Verified Subtotal ({items.reduce((acc, i) => acc + (i.quantity ?? 0), 0)} items)
+            Subtotal ({items.reduce((acc, i) => acc + (i.quantity ?? 0), 0)} items)
           </span>
           <span className="text-sm font-bold text-gray-900">
             ${(quote.subtotal ?? 0).toFixed(2)} {quote.currency ?? 'USD'}

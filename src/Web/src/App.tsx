@@ -1,21 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ShoppingBag, Activity } from 'lucide-react';
+import { ShoppingBag, Truck, ShieldCheck, RotateCcw, Sparkles, Package } from 'lucide-react';
 import {
   CartDto,
   CartService,
   CheckoutQuoteDto,
   configureApiClients,
-  getCorrelationId,
   InventoryService,
   OrderDto,
   ProductsService,
 } from './api';
-import { Badge, Button, ErrorBoundary, OfflineToast, ToastContainer } from './shared/components';
+import { Button, ErrorBoundary, OfflineToast, ToastContainer } from './shared/components';
 import { Product, ProductStatus, StockSummary, ToastMessage } from './shared/types';
 import { ProductCatalogGrid } from './features/catalog';
 import { ShoppingCartDrawer } from './features/cart';
 import { CheckoutWizard } from './features/checkout';
-import { LiveOrderTracker } from './features/orders';
+import { CustomerOrderReceipt } from './features/orders';
+import { AdminPortal } from './admin/AdminPortal';
 
 const SEEDED_PRODUCTS: Product[] = [
   {
@@ -173,6 +173,8 @@ export const App: React.FC = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
 
   const [activeOrder, setActiveOrder] = useState<OrderDto>(INITIAL_DEMO_ORDER);
+  const [showOrderTracker, setShowOrderTracker] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'store' | 'admin'>('store');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const pushToast = useCallback(
@@ -294,11 +296,7 @@ export const App: React.FC = () => {
       });
     } finally {
       setAddingProductId(null);
-      pushToast(
-        'Added to Cart',
-        `${product.name} (${product.sku}) added with live price snapshot v${product.priceVersion}.`,
-        'success'
-      );
+      pushToast('Added to Cart', `${product.name} added to your shopping cart.`, 'success');
     }
   };
 
@@ -371,36 +369,64 @@ export const App: React.FC = () => {
       setQuote(buildQuoteFromCart(cart, products));
     } finally {
       setIsUpdatingCart(false);
-      pushToast(
-        'Quote Verified',
-        'Cart prices verified against CatalogService live price versions.',
-        'info'
-      );
+      pushToast('Cart Updated', 'Your cart prices have been refreshed.', 'info');
     }
   };
 
+  if (viewMode === 'admin') {
+    return (
+      <ErrorBoundary>
+        <OfflineToast />
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        <AdminPortal
+          order={activeOrder}
+          products={products}
+          stockBySku={stockBySku}
+          onOrderUpdated={setActiveOrder}
+          onRefreshCatalog={() => void refreshCatalogAndInventory()}
+          onBackToStore={() => setViewMode('store')}
+          onNotifyToast={pushToast}
+        />
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
         <OfflineToast />
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        {/* Storefront Header */}
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-xs">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            {/* Brand Logo */}
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold text-lg">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-green-600 to-emerald-500 flex items-center justify-center text-white font-black text-xl shadow-xs">
                 S
               </div>
-              <span className="text-xl font-bold tracking-tight text-gray-900">ShopSphere</span>
-              <Badge variant="info">YARP Gateway BFF</Badge>
-              <span className="hidden md:inline-flex items-center text-xs text-gray-500 font-mono">
-                <Activity className="w-3.5 h-3.5 mr-1 text-green-600" />
-                X-Correlation-Id: {getCorrelationId().slice(0, 12)}
-              </span>
+              <div>
+                <span className="text-xl font-extrabold tracking-tight text-gray-900 block leading-tight">
+                  ShopSphere
+                </span>
+                <span className="text-[11px] font-medium text-gray-500 tracking-wide block uppercase">
+                  Tech &amp; Workspace Gear
+                </span>
+              </div>
             </div>
 
-            <div className="flex items-center space-x-3">
+            {/* Navigation links & Actions */}
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowOrderTracker((prev) => !prev)}
+                className="text-gray-700"
+              >
+                <Package className="w-4 h-4 mr-1.5 text-gray-500" />
+                {showOrderTracker ? 'Hide Order' : 'Track Order'}
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -411,18 +437,79 @@ export const App: React.FC = () => {
                   setIsCheckoutOpen(true);
                 }}
               >
-                Quick Checkout
+                Fast Checkout
               </Button>
-              <Button variant="primary" size="sm" onClick={() => setIsCartOpen(true)}>
+
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsCartOpen(true)}
+                className="bg-green-600 hover:bg-green-500"
+              >
                 <ShoppingBag className="w-4 h-4 mr-1.5" />
                 Cart ({cart.totalQuantity ?? 0})
               </Button>
+
+              <div className="h-6 w-px bg-gray-200 mx-1 hidden sm:block" />
+
+              <button
+                type="button"
+                onClick={() => setViewMode('admin')}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-colors cursor-pointer"
+                title="Switch to Staff Admin &amp; Operations Portal"
+              >
+                <span>⚙️ Staff Admin</span>
+              </button>
             </div>
           </div>
         </header>
 
-        {/* Main Storefront & Saga Lifecycle Workspace */}
+        {/* Main Storefront Body */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+          {/* Hero Storefront Banner */}
+          <section className="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white rounded-3xl p-8 sm:p-12 shadow-sm relative overflow-hidden">
+            <div className="max-w-2xl space-y-4 relative z-10">
+              <div className="inline-flex items-center space-x-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-semibold">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Spring 2026 Hardware Drop</span>
+              </div>
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+                Precision Hardware for Modern Desks
+              </h1>
+              <p className="text-sm sm:text-base text-gray-300 leading-relaxed font-normal">
+                Elevate your focus with gasket-mounted keyboards, 4K OLED displays, and
+                ultra-lightweight wireless mice. Guaranteed in-stock and covered by 1-year warranty.
+              </p>
+
+              {/* Value Props Badges */}
+              <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-gray-300">
+                <div className="flex items-center space-x-1.5">
+                  <Truck className="w-4 h-4 text-emerald-400" />
+                  <span>Free Express Delivery</span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>1-Year Official Warranty</span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <RotateCcw className="w-4 h-4 text-emerald-400" />
+                  <span>30-Day Money-Back Guarantee</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Customer Order Receipt & Tracking (When active or opened) */}
+          {showOrderTracker && (
+            <CustomerOrderReceipt
+              order={activeOrder}
+              onOrderUpdated={setActiveOrder}
+              onContinueShopping={() => setShowOrderTracker(false)}
+              onViewStaffDetails={() => setViewMode('admin')}
+            />
+          )}
+
+          {/* Product Catalog Grid */}
           <ProductCatalogGrid
             products={products}
             stockBySku={stockBySku}
@@ -430,12 +517,6 @@ export const App: React.FC = () => {
             onRefresh={() => void refreshCatalogAndInventory()}
             onAddToCart={(product) => void handleAddToCart(product)}
             addingProductId={addingProductId}
-          />
-
-          <LiveOrderTracker
-            order={activeOrder}
-            onOrderUpdated={setActiveOrder}
-            onNotifyToast={pushToast}
           />
         </main>
 
@@ -464,21 +545,36 @@ export const App: React.FC = () => {
           onOrderCreated={(createdOrder) => {
             setActiveOrder(createdOrder);
             setIsCheckoutOpen(false);
+            setShowOrderTracker(true);
             const emptyCart: CartDto = { customerId: 'cust-alex-01', items: [], totalQuantity: 0 };
             setCart(emptyCart);
             setQuote(buildQuoteFromCart(emptyCart, products));
             pushToast(
-              'Order Submitted',
-              `Order ${createdOrder.id ?? ''} entered the Checkout Saga.`,
+              'Order Placed',
+              `Thank you! Order #${createdOrder.id?.slice(0, 8) ?? ''} has been received.`,
               'success'
             );
           }}
         />
 
-        {/* Footer */}
-        <footer className="bg-white border-t border-gray-200 py-4 text-center text-xs text-gray-400">
-          ShopSphere Monorepo &middot; YARP Gateway Routing &middot; Generated OpenAPI Clients
-          &middot; Strict TypeScript
+        {/* Customer Storefront Footer */}
+        <footer className="bg-white border-t border-gray-200 py-8 px-4 text-center text-xs text-gray-500 space-y-2">
+          <div className="flex items-center justify-center space-x-6 text-gray-600 font-medium">
+            <span>Free Express Shipping</span>
+            <span>&middot;</span>
+            <span>30-Day Returns</span>
+            <span>&middot;</span>
+            <span>Stripe, MoMo &amp; VNPay</span>
+            <span>&middot;</span>
+            <button
+              type="button"
+              onClick={() => setViewMode('admin')}
+              className="text-gray-500 hover:text-gray-900 underline"
+            >
+              Staff Portal
+            </button>
+          </div>
+          <p className="text-gray-400">&copy; 2026 ShopSphere Inc. All rights reserved.</p>
         </footer>
       </div>
     </ErrorBoundary>

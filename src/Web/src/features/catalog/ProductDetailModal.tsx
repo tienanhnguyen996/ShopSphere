@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tag, ShieldCheck, Layers, ShoppingCart } from 'lucide-react';
+import { Tag, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { Badge, Button, Modal } from '../../shared/components';
 import { Product, StockSummary } from '../../shared/types';
 import { StockAvailabilityBadge } from './StockAvailabilityBadge';
@@ -73,44 +73,42 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <p className="text-sm text-gray-700 leading-relaxed">{product.description}</p>
         </div>
 
-        <div className="bg-green-50/70 border border-green-200 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-4 flex items-center justify-between">
           <div>
-            <div className="flex items-center space-x-2">
-              <Tag className="w-4 h-4 text-green-700" />
-              <span className="text-xs font-semibold uppercase text-green-800">
-                Real-Time Catalog Price
-              </span>
-              <Badge variant="info">v{product.priceVersion}</Badge>
+            <div className="flex items-center space-x-1.5">
+              <Tag className="w-4 h-4 text-emerald-700" />
+              <span className="text-xs font-semibold uppercase text-emerald-800">Price</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900 mt-1">
+            <p className="text-3xl font-extrabold text-gray-900 mt-1">
               ${product.price.toFixed(2)}{' '}
               <span className="text-sm font-normal text-gray-500">{product.currency}</span>
             </p>
           </div>
-          <div className="text-right text-xs text-gray-600 space-y-1">
-            <div className="flex items-center justify-end space-x-1 text-green-700 font-medium">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Versioned Price Snapshot</span>
+          <div className="text-right text-xs text-emerald-800 space-y-1">
+            <div className="flex items-center justify-end space-x-1 font-semibold">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>Authentic Guarantee</span>
             </div>
-            <p>Verified at checkout against Catalog v{product.priceVersion}</p>
+            <p className="text-emerald-700">Free shipping on orders over $50</p>
           </div>
         </div>
 
-        {stock ? (
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-between">
-              <span className="text-gray-500 flex items-center">
-                <Layers className="w-3.5 h-3.5 mr-1.5 text-gray-400" />
-                Available Stock
-              </span>
-              <span className="font-semibold text-gray-900">{stock.availableQuantity} units</span>
-            </div>
-            <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-between">
-              <span className="text-gray-500">Active Holds</span>
-              <span className="font-semibold text-amber-700">{stock.reservedQuantity} held</span>
+        <div className="grid grid-cols-2 gap-3 text-xs pt-1">
+          <div className="p-3 rounded-xl bg-gray-50 border border-gray-100 flex items-center space-x-2">
+            <span className="text-base">🚚</span>
+            <div>
+              <span className="font-semibold text-gray-900 block">Fast Dispatch</span>
+              <span className="text-gray-500">Ships within 24-48 hours</span>
             </div>
           </div>
-        ) : null}
+          <div className="p-3 rounded-xl bg-gray-50 border border-gray-100 flex items-center space-x-2">
+            <span className="text-base">🛡️</span>
+            <div>
+              <span className="font-semibold text-gray-900 block">1-Year Warranty</span>
+              <span className="text-gray-500">Official manufacturer cover</span>
+            </div>
+          </div>
+        </div>
       </div>
     </Modal>
   );
