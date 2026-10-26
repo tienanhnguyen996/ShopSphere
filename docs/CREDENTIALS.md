@@ -10,7 +10,7 @@
 |-----------|---------------|-------------|----------|----------|--------------------|
 | **SQL Server 2022** | `shopsphere-sqlserver` | `localhost,1433` | `sa` | `DevPassword123!` | `TrustServerCertificate=True` |
 | **RabbitMQ 3.13** | `shopsphere-rabbitmq` | `localhost:5672` (AMQP)<br>`http://localhost:15672` (UI) | `guest` | `guest` | Virtual Host: `/` |
-| **Redis 7** | `shopsphere-redis` | `localhost:6379` | *(none)* | *(none)* | Default DB `0` (Cart prefix: `ShopSphere_Cart:`) |
+| **Redis 7** | `shopsphere-redis` | `localhost:6379` | *(none)* | *(none)* | Default DB `0` (Prefixes: `ShopSphereCart:`, `ShopSphereCatalog:`) |
 
 ---
 
@@ -20,13 +20,13 @@ Each service owns its dedicated database on `localhost,1433` (`User Id=sa;Passwo
 
 | Service | Port | Database Name | Schema | Connection String Key |
 |---------|------|---------------|--------|-----------------------|
-| **CatalogService** | `5001` | `ShopSphereCatalog` | `dbo` | `ConnectionStrings:DefaultConnection` |
-| **CartService** | `5002` | *(Redis `localhost:6379`)* | `cart:{customerId}` | `ConnectionStrings:Redis` |
-| **InventoryService** | `5003` | `ShopSphereInventory` | `dbo` | `ConnectionStrings:DefaultConnection` |
-| **PaymentService** | `5004` | `ShopSpherePayment` | `dbo` | `ConnectionStrings:PaymentDatabase` |
-| **OrderService** | `5005` | `ShopSphere_Order` | `order` | `ConnectionStrings:OrderDb` |
+| **CatalogService** | `5001` | `ShopSphereCatalog` | `catalog` | `ConnectionStrings:CatalogDatabase` |
+| **CartService** | `5002` | *(Redis `localhost:6379`)* | `ShopSphereCart:cart:{customerId}` | `ConnectionStrings:Redis` |
+| **InventoryService** | `5003` | `ShopSphereInventory` | `inventory` | `ConnectionStrings:InventoryDatabase` |
+| **PaymentService** | `5004` | `ShopSpherePayment` | `payment` | `ConnectionStrings:PaymentDatabase` |
+| **OrderService** | `5005` | `ShopSphereOrders` | `order` | `ConnectionStrings:OrderDatabase` |
 | **ShippingService** | `5006` | `ShopSphere_Shipping` | `shipping` | `ConnectionStrings:ShippingDb` |
-| **IdentityService** | `5007` | `ShopSphereIdentity` | `dbo` | `ConnectionStrings:IdentityDatabase` |
+| **IdentityService** | `5007` | `ShopSphereIdentity` | `identity` | `ConnectionStrings:IdentityDatabase` |
 | **NotificationService** | `5008` | `ShopSphere_Notification` | `notification` | `ConnectionStrings:NotificationDb` |
 
 ---
