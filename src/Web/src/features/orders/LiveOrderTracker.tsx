@@ -8,7 +8,7 @@ import {
   ShipmentsService,
 } from '../../api';
 import { Badge, Button } from '../../shared/components';
-import { normalizeOrderState, OrderState } from '../../shared/types';
+import { formatCurrencyAmount, normalizeOrderState, OrderState } from '../../shared/types';
 import { EmailPreviewCard } from './EmailPreviewCard';
 import { OrderStateVisualizer } from './OrderStateVisualizer';
 import { OrderTrackingTimeline } from './OrderTrackingTimeline';
@@ -267,10 +267,8 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
           </div>
           <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
             Total:{' '}
-            <strong>
-              {order.currency ?? 'USD'} {(order.totalAmount ?? 0).toFixed(2)}
-            </strong>{' '}
-            • Payment: <code>{order.paymentMethod ?? 'credit_card'}</code>
+            <strong>{formatCurrencyAmount(order.totalAmount ?? 0, order.currency, true)}</strong> •
+            Payment: <code>{order.paymentMethod ?? 'credit_card'}</code>
           </div>
         </div>
 

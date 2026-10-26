@@ -53,15 +53,15 @@ public class MockPaymentProviderClient : IPaymentProviderClient
         var method = request.PaymentMethod.ToLowerInvariant();
         if (method.Contains("timeout"))
         {
-            _logger.LogWarning("Simulated provider timeout for Attempt {AttemptId}. Returning status Unknown.", request.PaymentAttemptId);
-            _knownAttempts[request.PaymentAttemptId] = (PaymentProviderStatus.Unknown, null);
+            _logger.LogWarning("Simulated provider timeout for Attempt {AttemptId}. Returning status Unknown (retained as Success at provider for reconciliation).", request.PaymentAttemptId);
+            _knownAttempts[request.PaymentAttemptId] = (PaymentProviderStatus.Success, $"mock_tx_{request.PaymentAttemptId:N}");
             return new PaymentChargeResult(PaymentProviderStatus.Unknown, null, "Provider call timed out; transaction status is unknown.");
         }
 
         if (method.Contains("network_error"))
         {
-            _logger.LogWarning("Simulated network failure for Attempt {AttemptId}. Returning status Unknown.", request.PaymentAttemptId);
-            _knownAttempts[request.PaymentAttemptId] = (PaymentProviderStatus.Unknown, null);
+            _logger.LogWarning("Simulated network failure for Attempt {AttemptId}. Returning status Unknown (retained as Failed at provider for reconciliation).", request.PaymentAttemptId);
+            _knownAttempts[request.PaymentAttemptId] = (PaymentProviderStatus.Failed, null);
             return new PaymentChargeResult(PaymentProviderStatus.Unknown, null, "Network connectivity failure; transaction status is unknown.");
         }
 

@@ -180,7 +180,7 @@ public class VnPayPaymentProviderClient : IPaymentProviderClient
         var command = "refund";
         var tmnCode = _settings.TmnCode;
         var transType = "02"; // Full refund
-        var amountVnd = (long)Math.Round(request.Amount, MidpointRounding.AwayFromZero) * 100;
+        var amountVnd = ConvertToVnd(request.Amount, request.Currency) * 100;
         var transDate = DateTime.UtcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
         var createDate = transDate;
         var createBy = "ShopSphere";

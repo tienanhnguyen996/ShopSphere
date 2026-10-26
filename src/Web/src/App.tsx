@@ -239,8 +239,9 @@ export const App: React.FC = () => {
 
       const serverCart = await CartService.getCart();
       if (!serverCart.items || serverCart.items.length === 0) {
+        const defaultSku = paged.items?.[0]?.sku ?? 'KB-RGB-001';
         const seededCart = await CartService.addItemToCart({
-          requestBody: { sku: 'KB-ERG-01', quantity: 1 },
+          requestBody: { sku: defaultSku, quantity: 1 },
         });
         setCart(seededCart);
       } else {

@@ -11,7 +11,11 @@ import {
 } from 'lucide-react';
 import { OrderDto, OrdersService, ShipmentDto } from '../../api';
 import { Badge, Button } from '../../shared/components';
-import { normalizeOrderState, normalizeShipmentState } from '../../shared/types';
+import {
+  formatCurrencyAmount,
+  normalizeOrderState,
+  normalizeShipmentState,
+} from '../../shared/types';
 
 export interface CustomerOrderReceiptProps {
   order: OrderDto;
@@ -295,10 +299,19 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
               </div>
               <div className="text-right">
                 <span className="text-sm font-bold text-gray-900 block">
-                  ${(item.lineTotal ?? (item.unitPrice ?? 0) * (item.quantity ?? 1)).toFixed(2)}
+                  {formatCurrencyAmount(
+                    item.lineTotal ?? (item.unitPrice ?? 0) * (item.quantity ?? 1),
+                    item.currency ?? order.currency,
+                    false
+                  )}
                 </span>
                 <span className="text-xs text-gray-400">
-                  ${(item.unitPrice ?? 0).toFixed(2)} each
+                  {formatCurrencyAmount(
+                    item.unitPrice ?? 0,
+                    item.currency ?? order.currency,
+                    false
+                  )}{' '}
+                  each
                 </span>
               </div>
             </div>
@@ -349,9 +362,7 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
           <div className="space-y-1.5 text-xs text-gray-600">
             <div className="flex justify-between">
               <span>Items Total:</span>
-              <span>
-                ${(order.totalAmount ?? 0).toFixed(2)} {order.currency ?? 'USD'}
-              </span>
+              <span>{formatCurrencyAmount(order.totalAmount ?? 0, order.currency, false)}</span>
             </div>
             <div className="flex justify-between text-green-600">
               <span>Shipping:</span>
@@ -359,9 +370,7 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
             </div>
             <div className="border-t border-gray-200 pt-2 flex justify-between text-sm font-bold text-gray-900">
               <span>Total Paid:</span>
-              <span>
-                ${(order.totalAmount ?? 0).toFixed(2)} {order.currency ?? 'USD'}
-              </span>
+              <span>{formatCurrencyAmount(order.totalAmount ?? 0, order.currency, true)}</span>
             </div>
           </div>
 
