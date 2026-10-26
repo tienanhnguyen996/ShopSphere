@@ -40,6 +40,26 @@ docker compose -f deploy/compose/docker-compose.yml ps
 # Give SQL Server and RabbitMQ a brief moment to ensure ports are listening
 Start-Sleep -Seconds 3
 
+# Ensure SQL Server 'sa' password matches DevPassword123! even if an older Docker volume exists
+$testSql = @'
+SELECT 1;
+GO
+'@
+$testSql | docker exec -i shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "DevPassword123!" -C *> $null
+if ($LASTEXITCODE -ne 0) {
+    foreach ($legacyPass in @("Your_password123", "YourStrong@Passw0rd", "ShopSphere_DevPassword123!")) {
+        $alterSql = @"
+ALTER LOGIN [sa] WITH PASSWORD = N'DevPassword123!';
+GO
+"@
+        $alterSql | docker exec -i shopsphere-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $legacyPass -C *> $null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "Synchronized SQL Server 'sa' password to DevPassword123!." -ForegroundColor Green
+            break
+        }
+    }
+}
+
 # 2. Define all services to launch
 $services = @(
     @{ Name = "Catalog.Api";         Path = "src/Services/Catalog/Catalog.Api";               Port = 5001; Type = "API" },

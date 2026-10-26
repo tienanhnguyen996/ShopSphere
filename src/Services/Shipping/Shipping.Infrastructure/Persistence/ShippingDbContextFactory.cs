@@ -8,7 +8,7 @@ public sealed class ShippingDbContextFactory : IDesignTimeDbContextFactory<Shipp
     public ShippingDbContext CreateDbContext(string[] args)
     {
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__ShippingDb")
-            ?? "Server=localhost,1433;Database=ShopSphere_Shipping;User Id=sa;Password=ShopSphere_DevPassword123!;TrustServerCertificate=True;Encrypt=False";
+            ?? "Server=localhost,1433;Database=ShopSphere_Shipping;User Id=sa;Password=DevPassword123!;TrustServerCertificate=True;Encrypt=False";
 
         var optionsBuilder = new DbContextOptionsBuilder<ShippingDbContext>();
         optionsBuilder.UseSqlServer(connectionString, sql =>
