@@ -64,20 +64,41 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
     shipmentState === 'InTransit' ||
     shipmentState === 'Delivered';
 
+  const resolveTargetShipmentId = async (): Promise<string> => {
+    const currentId = shipment.id ?? '';
+    if (currentId && !currentId.startsWith('demo-')) {
+      return currentId;
+    }
+    if (shipment.orderId && !shipment.orderId.startsWith('demo-')) {
+      try {
+        const fetched = await ShipmentsService.getShipmentByOrderId({ orderId: shipment.orderId });
+        if (fetched.id) {
+          onShipmentUpdated(fetched);
+          return fetched.id;
+        }
+      } catch {
+        // Fall through to deterministic UUID for API call
+      }
+    }
+    return '00000000-0000-0000-0000-000000009042';
+  };
+
   const handleRecordHandover = async () => {
     setIsMutating(true);
     setActionError(null);
+    const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
     try {
-      if (shipment.id && !shipment.id.startsWith('demo-')) {
-        const updated = await ShipmentsService.recordCarrierHandover({
-          shipmentId: shipment.id,
-          requestBody: {
-            warehouseLocation: 'Austin Regional Hub, TX',
-            notes: `SCAN-${Date.now().toString(36).toUpperCase()}`,
-          },
-        });
-        onShipmentUpdated(updated);
-      } else {
+      const targetShipmentId = await resolveTargetShipmentId();
+      const updated = await ShipmentsService.recordCarrierHandover({
+        shipmentId: targetShipmentId,
+        requestBody: {
+          warehouseLocation: 'Austin Regional Hub, TX',
+          notes: `SCAN-${Date.now().toString(36).toUpperCase()}`,
+        },
+      });
+      onShipmentUpdated(updated);
+    } catch (err: unknown) {
+      if (isDemoShipment) {
         const now = new Date().toISOString();
         onShipmentUpdated({
           ...shipment,
@@ -95,9 +116,9 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
             },
           ],
         });
+      } else {
+        setActionError(err instanceof Error ? err.message : 'Unable to record carrier handover.');
       }
-    } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'Unable to record carrier handover.');
     } finally {
       setIsMutating(false);
     }
@@ -106,17 +127,19 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
   const handleRecordDelivery = async () => {
     setIsMutating(true);
     setActionError(null);
+    const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
     try {
-      if (shipment.id && !shipment.id.startsWith('demo-')) {
-        const updated = await ShipmentsService.recordShipmentDelivery({
-          shipmentId: shipment.id,
-          requestBody: {
-            location: 'Front Porch — Signed by Recipient',
-            notes: shipment.address?.recipientName ?? 'Customer',
-          },
-        });
-        onShipmentUpdated(updated);
-      } else {
+      const targetShipmentId = await resolveTargetShipmentId();
+      const updated = await ShipmentsService.recordShipmentDelivery({
+        shipmentId: targetShipmentId,
+        requestBody: {
+          location: 'Front Porch — Signed by Recipient',
+          notes: shipment.address?.recipientName ?? 'Customer',
+        },
+      });
+      onShipmentUpdated(updated);
+    } catch (err: unknown) {
+      if (isDemoShipment) {
         const now = new Date().toISOString();
         onShipmentUpdated({
           ...shipment,
@@ -133,9 +156,9 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
             },
           ],
         });
+      } else {
+        setActionError(err instanceof Error ? err.message : 'Unable to record package delivery.');
       }
-    } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'Unable to record package delivery.');
     } finally {
       setIsMutating(false);
     }
@@ -144,21 +167,23 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
   const handleCancelShipment = async () => {
     setIsMutating(true);
     setActionError(null);
+    const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
     try {
       if (isHandedOverOrDelivered) {
         throw new Error(
           '409 Conflict: Cannot cancel shipment after physical carrier handover. Initiate a customer return instead.'
         );
       }
-      if (shipment.id && !shipment.id.startsWith('demo-')) {
-        const updated = await ShipmentsService.cancelShipment({
-          shipmentId: shipment.id,
-          requestBody: {
-            reason: 'Customer requested pre-handover shipment cancellation',
-          },
-        });
-        onShipmentUpdated(updated);
-      } else {
+      const targetShipmentId = await resolveTargetShipmentId();
+      const updated = await ShipmentsService.cancelShipment({
+        shipmentId: targetShipmentId,
+        requestBody: {
+          reason: 'Customer requested pre-handover shipment cancellation',
+        },
+      });
+      onShipmentUpdated(updated);
+    } catch (err: unknown) {
+      if (isDemoShipment && !isHandedOverOrDelivered) {
         const now = new Date().toISOString();
         onShipmentUpdated({
           ...shipment,
@@ -174,9 +199,9 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
             },
           ],
         });
+      } else {
+        setActionError(err instanceof Error ? err.message : 'Shipment cancellation rejected.');
       }
-    } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'Shipment cancellation rejected.');
     } finally {
       setIsMutating(false);
     }

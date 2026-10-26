@@ -7,6 +7,7 @@ import {
   configureApiClients,
   InventoryService,
   OrderDto,
+  OrdersService,
   ProductsService,
 } from './api';
 import { Button, ErrorBoundary, OfflineToast, ToastContainer } from './shared/components';
@@ -249,6 +250,20 @@ export const App: React.FC = () => {
       }
       const serverQuote = await CartService.getCartCheckoutQuote();
       setQuote(serverQuote);
+
+      try {
+        const pagedOrders = await OrdersService.getOrders({ page: 1, pageSize: 10 });
+        if (pagedOrders.items && pagedOrders.items.length > 0) {
+          const latestOrder = pagedOrders.items[0];
+          if (latestOrder) {
+            setActiveOrder((prev) =>
+              !prev.id || prev.id.startsWith('demo-') ? latestOrder : prev
+            );
+          }
+        }
+      } catch {
+        // Keep current active order if OrderService is unreachable
+      }
     } catch {
       // Gateway offline or running standalone UI demo: keep seeded catalog and stock
     } finally {
