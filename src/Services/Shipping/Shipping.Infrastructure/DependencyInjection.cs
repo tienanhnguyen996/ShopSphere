@@ -26,7 +26,8 @@ public static class DependencyInjection
             {
                 sql.MigrationsHistoryTable("__EFMigrationsHistory", ShippingDbContext.DefaultSchema);
                 sql.EnableRetryOnFailure(3);
-            });
+            })
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
         services.AddScoped<IShippingDbContext>(sp => sp.GetRequiredService<ShippingDbContext>());
