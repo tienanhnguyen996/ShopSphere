@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 860" width="1280" height="860" font-family="Inter, Segoe UI, system-ui, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="gatewayGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="sagaGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#60a5fa"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#fbbf24"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#34d399"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="860" rx="16" fill="url(#bgGrad)"/>
+
+  <!-- Title Banner -->
+  <text x="640" y="38" text-anchor="middle" fill="#f8fafc" font-size="22" font-weight="800">ShopSphere Distributed E-Commerce System Architecture</text>
+  <text x="640" y="60" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="500">YARP API Gateway • 8 .NET 10 Microservices &amp; 6 Outbox Workers • MassTransit Checkout Saga • SQL Server 2022 • RabbitMQ • Redis</text>
+
+  <!-- 1. FRONTEND TIER -->
+  <rect x="340" y="80" width="600" height="68" rx="12" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
+  <text x="640" y="106" text-anchor="middle" fill="#38bdf8" font-size="14" font-weight="700">React 18 + TypeScript SPA (:3000)</text>
+  <text x="640" y="126" text-anchor="middle" fill="#cbd5e1" font-size="11.5">Customer Storefront • Cart &amp; Checkout Wizard (USD/VND FX) • Customer Order History • Staff &amp; Admin Portal</text>
+  <text x="640" y="141" text-anchor="middle" fill="#64748b" font-size="10.5">Generated OpenAPI Clients • Propagates X-Correlation-Id, X-Customer-Id, Idempotency-Key</text>
+
+  <!-- Arrow Frontend -> Gateway -->
+  <line x1="640" y1="148" x2="640" y2="176" stroke="#60a5fa" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <text x="652" y="166" fill="#93c5fd" font-size="10.5" font-weight="600">HTTP / JSON (Proxy /api/v1/*)</text>
+
+  <!-- 2. API GATEWAY TIER -->
+  <rect x="200" y="180" width="880" height="62" rx="12" fill="url(#gatewayGrad)" stroke="#818cf8" stroke-width="2"/>
+  <text x="640" y="205" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="800">YARP Reverse Proxy &amp; BFF Gateway — ShopSphere.Gateway (:5000)</text>
+  <text x="640" y="226" text-anchor="middle" fill="#e0e7ff" font-size="11.5">Partitioned Rate Limiting (Global: 1000/min, Checkout: 120/min, Auth: 60/min) • W3C Trace &amp; Correlation ID • Security Headers • Active Health Probes</text>
+
+  <!-- Arrows Gateway -> 8 Microservices -->
+  <line x1="100" y1="242" x2="100" y2="282" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="254" y1="242" x2="254" y2="282" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="408" y1="242" x2="408" y2="282" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="562" y1="242" x2="562" y2="282" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="716" y1="242" x2="716" y2="282" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="870" y1="242" x2="870" y2="282" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="1024" y1="242" x2="1024" y2="282" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="1178" y1="242" x2="1178" y2="282" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+
+  <!-- 3. MICROSERVICES & WORKERS TIER -->
+  <!-- Svc 1: Identity -->
+  <rect x="30" y="286" width="142" height="145" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="101" y="308" text-anchor="middle" fill="#f8fafc" font-size="12.5" font-weight="700">Identity.Api</text>
+  <text x="101" y="324" text-anchor="middle" fill="#38bdf8" font-size="11" font-weight="600">Port :5007</text>
+  <text x="101" y="344" text-anchor="middle" fill="#cbd5e1" font-size="10">JWT Bearer Auth</text>
+  <text x="101" y="359" text-anchor="middle" fill="#cbd5e1" font-size="10">RBAC Roles &amp; Claims</text>
+  <text x="101" y="374" text-anchor="middle" fill="#cbd5e1" font-size="10">Refresh Token Rotation</text>
+  <rect x="40" y="390" width="122" height="30" rx="6" fill="#0f172a" stroke="#334155"/>
+  <text x="101" y="409" text-anchor="middle" fill="#94a3b8" font-size="9.5">[identity] Schema</text>
+
+  <!-- Svc 2: Catalog -->
+  <rect x="184" y="286" width="142" height="145" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="255" y="308" text-anchor="middle" fill="#f8fafc" font-size="12.5" font-weight="700">Catalog.Api</text>
+  <text x="255" y="324" text-anchor="middle" fill="#38bdf8" font-size="11" font-weight="600">Port :5001</text>
+  <text x="255" y="344" text-anchor="middle" fill="#cbd5e1" font-size="10">Product Aggregates</text>
+  <text x="255" y="359" text-anchor="middle" fill="#cbd5e1" font-size="10">PriceVersion Tracking</text>
+  <text x="255" y="374" text-anchor="middle" fill="#cbd5e1" font-size="10">Redis Read Cache</text>
+  <rect x="194" y="390" width="122" height="30" rx="6" fill="#0f172a" stroke="#34d399"/>
+  <text x="255" y="409" text-anchor="middle" fill="#6ee7b7" font-size="9.5">+ Catalog.Worker</text>
+
+  <!-- Svc 3: Cart -->
+  <rect x="338" y="286" width="142" height="145" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="409" y="308" text-anchor="middle" fill="#f8fafc" font-size="12.5" font-weight="700">Cart.Api</text>
+  <text x="409" y="324" text-anchor="middle" fill="#38bdf8" font-size="11" font-weight="600">Port :5002</text>
+  <text x="409" y="344" text-anchor="middle" fill="#cbd5e1" font-size="10">Redis Cart Store</text>
+  <text x="409" y="359" text-anchor="middle" fill="#cbd5e1" font-size="10">Checkout Price Quote</text>
+  <text x="409" y="374" text-anchor="middle" fill="#cbd5e1" font-size="10">HTTP -&gt; Catalog.Api</text>
+  <rect x="348" y="390" width="122" height="30" rx="6" fill="#0f172a" stroke="#f87171"/>
+  <text x="409" y="409" text-anchor="middle" fill="#fca5a5" font-size="9.5">Redis Key-Value</text>
+
+  <!-- Svc 4: Order & Saga -->
+  <rect x="492" y="286" width="142" height="145" rx="10" fill="#064e3b" stroke="#10b981" stroke-width="2"/>
+  <text x="563" y="308" text-anchor="middle" fill="#ffffff" font-size="12.5" font-weight="800">Order.Api</text>
+  <text x="563" y="324" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="700">Port :5005</text>
+  <text x="563" y="344" text-anchor="middle" fill="#d1fae5" font-size="10">Checkout &amp; USD-&gt;VND</text>
+  <text x="563" y="359" text-anchor="middle" fill="#d1fae5" font-size="10">CheckoutStateMachine</text>
+  <text x="563" y="374" text-anchor="middle" fill="#d1fae5" font-size="10">OrderStateSync</text>
+  <rect x="502" y="390" width="122" height="30" rx="6" fill="#022c22" stroke="#34d399"/>
+  <text x="563" y="409" text-anchor="middle" fill="#34d399" font-size="9.5" font-weight="700">+ Order.Worker (Saga)</text>
+
+  <!-- Svc 5: Inventory -->
+  <rect x="646" y="286" width="142" height="145" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="717" y="308" text-anchor="middle" fill="#f8fafc" font-size="12.5" font-weight="700">Inventory.Api</text>
+  <text x="717" y="324" text-anchor="middle" fill="#38bdf8" font-size="11" font-weight="600">Port :5003</text>
+  <text x="717" y="344" text-anchor="middle" fill="#cbd5e1" font-size="10">RowVersion Locks</text>
+  <text x="717" y="359" text-anchor="middle" fill="#cbd5e1" font-size="10">15m Reservation TTL</text>
+  <text x="717" y="374" text-anchor="middle" fill="#cbd5e1" font-size="10">Expiry Sweep Worker</text>
+  <rect x="656" y="390" width="122" height="30" rx="6" fill="#0f172a" stroke="#34d399"/>
+  <text x="717" y="409" text-anchor="middle" fill="#6ee7b7" font-size="9.5">+ Inventory.Worker</text>
+
+  <!-- Svc 6: Payment -->
+  <rect x="800" y="286" width="142" height="145" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="871" y="308" text-anchor="middle" fill="#f8fafc" font-size="12.5" font-weight="700">Payment.Api</text>
+  <text x="871" y="324" text-anchor="middle" fill="#38bdf8" font-size="11" font-weight="600">Port :5004</text>
+  <text x="871" y="344" text-anchor="middle" fill="#cbd5e1" font-size="10">Stripe / MoMo / VNPay</text>
+  <text x="871" y="359" text-anchor="middle" fill="#cbd5e1" font-size="10">PaymentUnknown Guard</text>
+  <text x="871" y="374" text-anchor="middle" fill="#cbd5e1" font-size="10">8s Reconciliation Poll</text>
+  <rect x="810" y="390" width="122" height="30" rx="6" fill="#0f172a" stroke="#34d399"/>
+  <text x="871" y="409" text-anchor="middle" fill="#6ee7b7" font-size="9.5">+ Payment.Worker</text>
+
+  <!-- Svc 7: Shipping -->
+  <rect x="954" y="286" width="142" height="145" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1025" y="308" text-anchor="middle" fill="#f8fafc" font-size="12.5" font-weight="700">Shipping.Api</text>
+  <text x="1025" y="324" text-anchor="middle" fill="#38bdf8" font-size="11" font-weight="600">Port :5006</text>
+  <text x="1025" y="344" text-anchor="middle" fill="#cbd5e1" font-size="10">GHN (VN) &amp; Shippo</text>
+  <text x="1025" y="359" text-anchor="middle" fill="#cbd5e1" font-size="10">Handover &amp; Delivery</text>
+  <text x="1025" y="374" text-anchor="middle" fill="#cbd5e1" font-size="10">Pre-Handover Cancel</text>
+  <rect x="964" y="390" width="122" height="30" rx="6" fill="#0f172a" stroke="#34d399"/>
+  <text x="1025" y="409" text-anchor="middle" fill="#6ee7b7" font-size="9.5">+ Shipping.Worker</text>
+
+  <!-- Svc 8: Notification -->
+  <rect x="1108" y="286" width="142" height="145" rx="10" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="1179" y="308" text-anchor="middle" fill="#f8fafc" font-size="12.5" font-weight="700">Notification.Api</text>
+  <text x="1179" y="324" text-anchor="middle" fill="#38bdf8" font-size="11" font-weight="600">Port :5008</text>
+  <text x="1179" y="344" text-anchor="middle" fill="#cbd5e1" font-size="10">Email &amp; SMS Dispatch</text>
+  <text x="1179" y="359" text-anchor="middle" fill="#cbd5e1" font-size="10">Idempotent Job Log</text>
+  <text x="1179" y="374" text-anchor="middle" fill="#cbd5e1" font-size="10">Manual Retry Endpoint</text>
+  <rect x="1118" y="390" width="122" height="30" rx="6" fill="#0f172a" stroke="#34d399"/>
+  <text x="1179" y="409" text-anchor="middle" fill="#6ee7b7" font-size="9.5">+ Notification.Worker</text>
+
+  <!-- Arrows Workers <-> RabbitMQ -->
+  <line x1="255" y1="431" x2="255" y2="482" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowAmber)"/>
+  <line x1="563" y1="431" x2="563" y2="482" stroke="#fbbf24" stroke-width="2" marker-end="url(#arrowAmber)"/>
+  <line x1="717" y1="431" x2="717" y2="482" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowAmber)"/>
+  <line x1="871" y1="431" x2="871" y2="482" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowAmber)"/>
+  <line x1="1025" y1="431" x2="1025" y2="482" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowAmber)"/>
+  <line x1="1179" y1="431" x2="1179" y2="482" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrowAmber)"/>
+
+  <!-- 4. MESSAGING & EVENT BUS TIER -->
+  <rect x="180" y="486" width="1070" height="76" rx="12" fill="#451a03" stroke="#f59e0b" stroke-width="2"/>
+  <text x="715" y="512" text-anchor="middle" fill="#fbbf24" font-size="14" font-weight="800">RabbitMQ 3.13 Event Broker (:5672 / Management UI :15672) + MassTransit 8.3.3 Transactional Outbox</text>
+  <text x="715" y="532" text-anchor="middle" fill="#fde68a" font-size="11">Commands: ReserveInventory • CollectPayment • CommitInventory • ReleaseInventory • CreateShipment • RefundPayment</text>
+  <text x="715" y="549" text-anchor="middle" fill="#fcd34d" font-size="11">Events: OrderSubmitted • InventoryReserved/Rejected • PaymentSucceeded/Rejected/PendingResolution • ShipmentCreated/HandedOver/Delivered • OrderConfirmed/Cancelled</text>
+
+  <!-- 5. DATA & EXTERNAL INTEGRATIONS TIER -->
+  <!-- Redis Cache -->
+  <rect x="30" y="592" width="260" height="122" rx="12" fill="#3b0764" stroke="#c084fc" stroke-width="1.8"/>
+  <text x="160" y="618" text-anchor="middle" fill="#e9d5ff" font-size="13.5" font-weight="800">Redis 7 (:6379)</text>
+  <text x="160" y="636" text-anchor="middle" fill="#d8b4fe" font-size="11">Read Cache &amp; Cart Store Only</text>
+  <text x="160" y="658" text-anchor="middle" fill="#f3e8ff" font-size="10.5">• ShopSphereCatalog:* (Products)</text>
+  <text x="160" y="675" text-anchor="middle" fill="#f3e8ff" font-size="10.5">• ShopSphereCart:cart:{customerId}</text>
+  <text x="160" y="696" text-anchor="middle" fill="#c084fc" font-size="9.5" font-style="italic">Never caches inventory/payment state</text>
+
+  <!-- SQL Server 2022 -->
+  <rect x="310" y="592" width="630" height="122" rx="12" fill="#0c4a6e" stroke="#38bdf8" stroke-width="2"/>
+  <text x="625" y="618" text-anchor="middle" fill="#ffffff" font-size="13.5" font-weight="800">SQL Server 2022 (:1433) — Isolated Per-Service Databases &amp; Schemas + Outbox Tables</text>
+  <text x="625" y="640" text-anchor="middle" fill="#bae6fd" font-size="10.5">• ShopSphereIdentity.[identity] (Users, Roles, RefreshTokens)</text>
+  <text x="625" y="656" text-anchor="middle" fill="#bae6fd" font-size="10.5">• ShopSphereCatalog.[catalog] (Products, PriceHistory)   • ShopSphereInventory.[inventory] (StockItems, Reservations)</text>
+  <text x="625" y="672" text-anchor="middle" fill="#bae6fd" font-size="10.5">• ShopSphereOrders.[order] (Orders, OrderItems, CheckoutSagaStates, IdempotencyRecords)</text>
+  <text x="625" y="688" text-anchor="middle" fill="#bae6fd" font-size="10.5">• ShopSpherePayment.[payment] (PaymentAttempts)   • ShopSphere_Shipping.[shipping] (Shipments, TrackingMilestones)</text>
+  <text x="625" y="704" text-anchor="middle" fill="#7dd3fc" font-size="10" font-weight="600">• ShopSphere_Notification.[notification] (NotificationJobs)   + [InboxState, OutboxState, OutboxMessage] per service</text>
+
+  <!-- External Gateways & Carriers -->
+  <rect x="960" y="592" width="290" height="122" rx="12" fill="#1e293b" stroke="#34d399" stroke-width="1.8"/>
+  <text x="1105" y="618" text-anchor="middle" fill="#6ee7b7" font-size="13.5" font-weight="800">External Sandbox Providers</text>
+  <text x="1105" y="640" text-anchor="middle" fill="#e2e8f0" font-size="10.5">Payments (RoutingPaymentProviderClient):</text>
+  <text x="1105" y="656" text-anchor="middle" fill="#94a3b8" font-size="10">• Stripe (USD) • MoMo &amp; VNPay (VND, 1:25,400)</text>
+  <text x="1105" y="676" text-anchor="middle" fill="#e2e8f0" font-size="10.5">Carriers (RoutingCarrierProviderClient):</text>
+  <text x="1105" y="692" text-anchor="middle" fill="#94a3b8" font-size="10">• GHN Sandbox (Vietnam) • Shippo (US/Intl)</text>
+  <text x="1105" y="706" text-anchor="middle" fill="#34d399" font-size="9.5" font-style="italic">+ Automatic Mock Provider Fallback</text>
+
+  <!-- 6. SAGA STATE FLOW FOOTER -->
+  <rect x="30" y="734" width="1220" height="102" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+  <text x="640" y="758" text-anchor="middle" fill="#f8fafc" font-size="13" font-weight="800">Distributed Checkout Saga &amp; Fulfillment State Progression</text>
+  <text x="640" y="782" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">Order Saga:   Pending  ──►  Reserving (15m Hold)  ──►  Paying  ──►  [PaymentUnknown (8s Reconcile)]  ──►  Committing  ──►  Shipping  ──►  Confirmed</text>
+  <text x="640" y="803" text-anchor="middle" fill="#f87171" font-size="11.5" font-weight="600">Compensations &amp; Guards:   Out-of-Stock / Declined ──► ReleaseInventory ──► Cancelled   |   Commit/Label Fail or Late Payment ──► Refunding ──► Cancelled</text>
+  <text x="640" y="822" text-anchor="middle" fill="#60a5fa" font-size="11.5" font-weight="600">Carrier Fulfillment (Post-Confirmed):   LabelCreated  ──►  HandedOver (Blocks Pre-Handover Cancel)  ──►  InTransit  ──►  Delivered</text>
+</svg>

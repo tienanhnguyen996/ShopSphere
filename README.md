@@ -408,21 +408,36 @@ See [Notion Integration](#notion-integration) above.
 
 ## Architecture
 
+![ShopSphere System Architecture](./docs/assets/system-architecture.svg)
+
+> **Full Architecture Reference**: See [**docs/SYSTEM-ARCHITECTURE.md**](./docs/SYSTEM-ARCHITECTURE.md) for detailed Mermaid topology, Checkout Saga sequence diagrams, Order & Carrier Shipment state machines, and per-service SQL schema ownership tables.
+
 ShopSphere is a microservices e-commerce platform with:
 
-- **8 Services**: Identity, Catalog, Cart, Order, Inventory, Payment, Shipping, Notification
-- **Saga Orchestration**: Checkout workflow coordinates stock reservation → payment → shipping → notification
-- **Transactional Outbox**: Atomic writes + messaging, no lost/duplicate messages
-- **Eventual Consistency**: Services update asynchronously, expose intermediate states
-- **Resilience Patterns**: Retries, circuit breakers, timeout = unknown (not failure)
+- **8 Microservices & 6 Background Workers**: Identity (`:5007`), Catalog (`:5001` + Worker), Cart (`:5002`), Inventory (`:5003` + Worker), Payment (`:5004` + Worker), Order (`:5005` + Saga Worker), Shipping (`:5006` + Worker), and Notification (`:5008` + Worker), fronted by a **YARP Reverse Proxy & BFF Gateway (`:5000`)** and **React 18 + TypeScript SPA (`:3000`)**.
+- **Saga Orchestration (`CheckoutStateMachine`)**: Coordinates stock reservation (15m TTL) → payment collection (`USD` & `VND` FX `1:25,400`) → stock commit → carrier label creation (`GHN` / `Shippo`) → confirmation notifications (`Email` & `SMS`).
+- **Transactional Outbox**: Atomic SQL writes + `InboxState` / `OutboxState` / `OutboxMessage` relay to RabbitMQ, preventing lost or duplicate messages.
+- **Eventual Consistency & Explicit Intermediate States**: Services update asynchronously and expose intermediate states (`Reserving`, `Paying`, `PaymentUnknown`, `Refunding`, `ShipmentUnknown`, `HandedOver`).
+- **Resilience Patterns**: Optimistic concurrency (`rowversion`), idempotency keys with SHA-256 request fingerprinting, `Timeout = Unknown` reconciliation (`PaymentReconciliationWorker`), and late-event compensation.
+
+```mermaid
+flowchart LR
+    SPA["React 18 SPA (:3000)\nStorefront & Admin Portal"] -->|"HTTP /api/v1/*"| GW["YARP Gateway (:5000)\nRate Limit & Trace ID"]
+    GW --> ID["Identity (:5007)"] & CAT["Catalog (:5001)"] & CART["Cart (:5002)"] & ORD["Order (:5005)"] & INV["Inventory (:5003)"] & PAY["Payment (:5004)"] & SHP["Shipping (:5006)"] & NTF["Notification (:5008)"]
+    CART -.->|"Price Quote"| CAT
+    ORD -.->|"Verified Quote"| CART
+    CAT & CART --> REDIS[("Redis 7 (:6379)")]
+    ID & CAT & ORD & INV & PAY & SHP & NTF --> SQL[("SQL Server 2022 (:1433)\nPer-Service DBs + Outbox")]
+    ORD & INV & PAY & SHP & NTF <-->|"MassTransit Outbox"| RMQ[["RabbitMQ (:5672)"]]
+```
 
 **Key Principles**:
 - Each service owns its data (no cross-service DB access)
 - Redis caches reads only (not source of truth)
-- Concurrency control via EF Core tokens
-- Late events check state/version before applying
+- Concurrency control via EF Core `rowversion` tokens
+- Late events check state/version before applying and open compensation if needed
 
-See [AGENTS.md](./AGENTS.md) for complete architectural rules.
+See [**docs/SYSTEM-ARCHITECTURE.md**](./docs/SYSTEM-ARCHITECTURE.md) and [**AGENTS.md**](./AGENTS.md) for complete architectural rules.
 
 ## Project Structure
 
@@ -438,9 +453,11 @@ ShopSphere/
 │   ├── compose/             # Local Docker infra (SQL Server, RabbitMQ, Redis)
 │   └── terraform/           # IaC modules
 ├── docs/
+│   ├── assets/              # System architecture SVG diagram (system-architecture.svg)
 │   ├── requirements/        # Architecture, services, messaging, infra
 │   ├── adr/                 # Architecture Decision Records
 │   ├── specs/               # Service OpenAPI specifications
+│   ├── SYSTEM-ARCHITECTURE.md # End-to-end topology, Saga sequence & state machine diagrams
 │   ├── CREDENTIALS.md       # Local development credentials & connection strings
 │   └── agent-setup.md       # MCP configuration guide
 ├── scripts/
@@ -587,7 +604,8 @@ Re-run on every skill update. Or add to `bootstrap.sh`.
 
 ## Resources
 
-- **Architecture Guide**: [AGENTS.md](./AGENTS.md)
+- **System Architecture Diagrams**: [docs/SYSTEM-ARCHITECTURE.md](./docs/SYSTEM-ARCHITECTURE.md)
+- **Architecture Rules**: [AGENTS.md](./AGENTS.md)
 - **Credentials & Endpoints**: [docs/CREDENTIALS.md](./docs/CREDENTIALS.md)
 - **Requirements**: [docs/requirements/](./docs/requirements/)
 - **ADRs**: [docs/adr/](./docs/adr/)

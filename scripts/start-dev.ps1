@@ -29,6 +29,24 @@ Write-Host "=============================================" -ForegroundColor Cyan
 
 # 1. Start Docker Infrastructure
 Write-Host "`n[1/5] Starting Docker infrastructure (SQL Server, RabbitMQ, Redis)..." -ForegroundColor Yellow
+
+docker info *> $null
+if ($LASTEXITCODE -ne 0) {
+    $dockerDesktopPath = "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+    if (Test-Path $dockerDesktopPath) {
+        Write-Host "Docker daemon is not running. Launching Docker Desktop and waiting for engine..." -ForegroundColor Yellow
+        Start-Process -FilePath $dockerDesktopPath
+        for ($i = 0; $i -lt 45; $i++) {
+            Start-Sleep -Seconds 2
+            docker info *> $null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Docker daemon is ready!" -ForegroundColor Green
+                break
+            }
+        }
+    }
+}
+
 docker compose -f deploy/compose/docker-compose.yml up -d
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to start Docker Compose infrastructure. Ensure Docker Desktop is running."
