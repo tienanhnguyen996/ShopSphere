@@ -120,3 +120,81 @@ export function normalizeShipmentState(raw: string | undefined): ShipmentState {
       return 'Pending';
   }
 }
+
+export interface StateTransitionValidation {
+  allowed: boolean;
+  reason?: string;
+}
+
+const ALLOWED_ORDER_TRANSITIONS: Record<OrderState, readonly OrderState[]> = {
+  Pending: ['Reserving', 'Paying', 'Cancelled'],
+  Reserving: ['Paying', 'Cancelled'],
+  Paying: ['PaymentUnknown', 'Confirmed', 'Refunding', 'Cancelled'],
+  PaymentUnknown: ['Confirmed', 'Refunding', 'Cancelled'],
+  Confirmed: ['Refunding'],
+  Refunding: ['Cancelled'],
+  Cancelled: ['Refunding'],
+};
+
+export function getAllowedNextOrderStates(current: OrderState): readonly OrderState[] {
+  return ALLOWED_ORDER_TRANSITIONS[current] ?? [];
+}
+
+export function validateOrderStateTransition(
+  from: OrderState,
+  to: OrderState,
+  shipmentState?: ShipmentState | null
+): StateTransitionValidation {
+  if (from === to) {
+    return {
+      allowed: false,
+      reason: `Order is already in '${from}' state.`,
+    };
+  }
+
+  if (
+    from === 'Confirmed' &&
+    (shipmentState === 'HandedOver' ||
+      shipmentState === 'InTransit' ||
+      shipmentState === 'Delivered')
+  ) {
+    return {
+      allowed: false,
+      reason: `Cannot transition order from 'Confirmed' to '${to}' because shipment is already '${shipmentState}'. Initiate a customer return instead.`,
+    };
+  }
+
+  if (from === 'Confirmed' && to === 'Cancelled') {
+    return {
+      allowed: false,
+      reason:
+        "Cannot directly cancel a 'Confirmed' order without refunding. Transition to 'Refunding' first.",
+    };
+  }
+
+  if ((from === 'Pending' || from === 'Reserving') && to === 'Refunding') {
+    return {
+      allowed: false,
+      reason: `Cannot transition order from '${from}' to 'Refunding' before the payment stage.`,
+    };
+  }
+
+  if (from === 'Cancelled' && to === 'Confirmed') {
+    return {
+      allowed: false,
+      reason: "Late events cannot resurrect a 'Cancelled' order into 'Confirmed' state.",
+    };
+  }
+
+  const allowedTargets = ALLOWED_ORDER_TRANSITIONS[from] ?? [];
+  if (!allowedTargets.includes(to)) {
+    return {
+      allowed: false,
+      reason: `Invalid state transition from '${from}' to '${to}'. Allowed next states: ${
+        allowedTargets.length > 0 ? allowedTargets.join(', ') : 'none (terminal)'
+      }.`,
+    };
+  }
+
+  return { allowed: true };
+}

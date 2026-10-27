@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { ShipmentDto, ShipmentsService } from '../../api';
 import { Badge, Button } from '../../shared/components';
-import { normalizeShipmentState, ShipmentState } from '../../shared/types';
+import { normalizeShipmentState, OrderState, ShipmentState } from '../../shared/types';
 
 export interface OrderTrackingTimelineProps {
   shipment: ShipmentDto | null;
+  orderStatus?: OrderState;
   onShipmentUpdated: (shipment: ShipmentDto) => void;
 }
 
@@ -34,6 +35,7 @@ function getShipmentBadgeVariant(
 
 export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
   shipment,
+  orderStatus,
   onShipmentUpdated,
 }) => {
   const [isMutating, setIsMutating] = useState(false);
@@ -57,6 +59,7 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
     );
   }
 
+  const isOrderConfirmed = !orderStatus || orderStatus === 'Confirmed';
   const shipmentState = normalizeShipmentState(shipment.status ?? undefined);
   const milestones = shipment.milestones ?? [];
   const isHandedOverOrDelivered =
@@ -84,8 +87,21 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
   };
 
   const handleRecordHandover = async () => {
-    setIsMutating(true);
     setActionError(null);
+    if (!isOrderConfirmed) {
+      setActionError(
+        `409 Conflict: Order is currently '${orderStatus}'. Order must be 'Confirmed' before carrier handover.`
+      );
+      return;
+    }
+    if (shipmentState !== 'LabelCreated') {
+      setActionError(
+        `409 Conflict: Cannot record carrier handover when shipment is in '${shipmentState}' state. Expected 'LabelCreated'.`
+      );
+      return;
+    }
+
+    setIsMutating(true);
     const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
     try {
       const targetShipmentId = await resolveTargetShipmentId();
@@ -125,8 +141,21 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
   };
 
   const handleRecordDelivery = async () => {
-    setIsMutating(true);
     setActionError(null);
+    if (!isOrderConfirmed) {
+      setActionError(
+        `409 Conflict: Order is currently '${orderStatus}'. Order must be 'Confirmed' before recording delivery.`
+      );
+      return;
+    }
+    if (shipmentState !== 'HandedOver' && shipmentState !== 'InTransit') {
+      setActionError(
+        `409 Conflict: Cannot record final delivery when shipment is in '${shipmentState}' state. Package must be 'HandedOver' or 'InTransit' first.`
+      );
+      return;
+    }
+
+    setIsMutating(true);
     const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
     try {
       const targetShipmentId = await resolveTargetShipmentId();
@@ -165,8 +194,19 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
   };
 
   const handleCancelShipment = async () => {
-    setIsMutating(true);
     setActionError(null);
+    if (!isOrderConfirmed) {
+      setActionError(
+        `409 Conflict: Order is currently '${orderStatus}'. Cannot modify shipment while order is not 'Confirmed'.`
+      );
+      return;
+    }
+    if (shipmentState === 'Cancelled') {
+      setActionError('409 Conflict: Shipment is already cancelled.');
+      return;
+    }
+
+    setIsMutating(true);
     const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
     try {
       if (isHandedOverOrDelivered) {
@@ -310,21 +350,30 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
       >
         <Button
           variant="secondary"
-          disabled={isMutating || shipmentState !== 'LabelCreated'}
+          disabled={isMutating || !isOrderConfirmed || shipmentState !== 'LabelCreated'}
           onClick={handleRecordHandover}
         >
           Simulate Carrier Handover
         </Button>
         <Button
           variant="primary"
-          disabled={isMutating || shipmentState !== 'HandedOver'}
+          disabled={
+            isMutating ||
+            !isOrderConfirmed ||
+            (shipmentState !== 'HandedOver' && shipmentState !== 'InTransit')
+          }
           onClick={handleRecordDelivery}
         >
           Simulate Final Delivery
         </Button>
         <Button
           variant="danger"
-          disabled={isMutating || shipmentState === 'Cancelled' || shipmentState === 'Delivered'}
+          disabled={
+            isMutating ||
+            !isOrderConfirmed ||
+            shipmentState === 'Cancelled' ||
+            shipmentState === 'Delivered'
+          }
           onClick={handleCancelShipment}
         >
           Cancel Shipment (Pre-Handover Guard)
