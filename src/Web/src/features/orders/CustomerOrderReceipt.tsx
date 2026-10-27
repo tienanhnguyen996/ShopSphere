@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -51,46 +51,73 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
     ? normalizeShipmentState(resolvedShipment.status ?? undefined)
     : null;
 
-  const syncOrderAndShipment = useCallback(async () => {
+  // Keep latest callback/order in refs so polling callbacks stay referentially stable.
+  // Depending on an inline parent callback here previously caused an infinite
+  // fetch -> setState -> re-render -> refetch loop that exhausted the gateway rate limit (429).
+  const onOrderUpdatedRef = useRef(onOrderUpdated);
+  const orderRef = useRef(order);
+  const inFlightRef = useRef(false);
+  useEffect(() => {
+    onOrderUpdatedRef.current = onOrderUpdated;
+    orderRef.current = order;
+  });
+
+  const syncOrderList = useCallback(async () => {
+    try {
+      const pagedOrders = await OrdersService.getOrders({ page: 1, pageSize: 20 });
+      if (pagedOrders.items && pagedOrders.items.length > 0) {
+        setFetchedOrders(pagedOrders.items);
+      }
+    } catch {
+      // Keep current orders list if OrderService fails
+    }
+  }, []);
+
+  const syncOrderAndShipment = useCallback(async (orderId: string | null | undefined) => {
+    if (!orderId || orderId.startsWith('demo-') || inFlightRef.current) {
+      return;
+    }
+    inFlightRef.current = true;
     setIsRefreshing(true);
     try {
       try {
-        const pagedOrders = await OrdersService.getOrders({ page: 1, pageSize: 20 });
-        if (pagedOrders.items && pagedOrders.items.length > 0) {
-          setFetchedOrders(pagedOrders.items);
+        const latestOrder = await OrdersService.getOrderById({ id: orderId });
+        const current = orderRef.current;
+        const hasChanged =
+          current.id !== latestOrder.id ||
+          current.status !== latestOrder.status ||
+          current.updatedAtUtc !== latestOrder.updatedAtUtc ||
+          current.trackingNumber !== latestOrder.trackingNumber;
+        if (hasChanged && onOrderUpdatedRef.current) {
+          onOrderUpdatedRef.current(latestOrder);
         }
       } catch {
-        // Keep current orders list if OrderService fails
-      }
-
-      if (!order.id || order.id.startsWith('demo-')) {
-        return;
+        // Keep current order snapshot if OrderService fails (e.g. 429 / offline)
       }
 
       try {
-        const latestOrder = await OrdersService.getOrderById({ id: order.id });
-        if (onOrderUpdated) {
-          onOrderUpdated(latestOrder);
-        }
-      } catch {
-        // Keep current order snapshot if OrderService fails
-      }
-
-      try {
-        const latestShipment = await ShipmentsService.getShipmentByOrderId({ orderId: order.id });
+        const latestShipment = await ShipmentsService.getShipmentByOrderId({ orderId });
         setFetchedShipment(latestShipment);
       } catch {
-        setFetchedShipment(null);
+        // Shipment may not exist yet before OrderConfirmed; keep last known snapshot
       }
     } finally {
+      inFlightRef.current = false;
       setIsRefreshing(false);
     }
-  }, [onOrderUpdated, order.id]);
+  }, []);
 
+  // Load the customer's order list once when the panel opens
   useEffect(() => {
-    void syncOrderAndShipment();
-  }, [syncOrderAndShipment, order.status]);
+    void syncOrderList();
+  }, [syncOrderList]);
 
+  // Sync the selected order + shipment when the selected order changes
+  useEffect(() => {
+    void syncOrderAndShipment(order.id);
+  }, [order.id, syncOrderAndShipment]);
+
+  // Poll every 5s while the order is still progressing and the tab is visible
   useEffect(() => {
     if (!order.id || order.id.startsWith('demo-')) {
       return;
@@ -99,8 +126,10 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
       return;
     }
     const timer = window.setInterval(() => {
-      void syncOrderAndShipment();
-    }, 3000);
+      if (document.visibilityState === 'visible') {
+        void syncOrderAndShipment(order.id);
+      }
+    }, 5000);
     return () => window.clearInterval(timer);
   }, [order.id, orderState, shipmentState, syncOrderAndShipment]);
 
@@ -309,7 +338,10 @@ export const CustomerOrderReceipt: React.FC<CustomerOrderReceiptProps> = ({
             variant="outline"
             size="sm"
             isLoading={isRefreshing}
-            onClick={() => void syncOrderAndShipment()}
+            onClick={() => {
+              void syncOrderList();
+              void syncOrderAndShipment(order.id);
+            }}
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
             Refresh Status

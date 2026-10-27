@@ -195,6 +195,15 @@ export const App: React.FC = () => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const handleCustomerOrderUpdated = useCallback((updatedOrder: OrderDto) => {
+    setActiveOrder(updatedOrder);
+    setCustomerOrders((prev) => {
+      const exists = prev.some((o) => o.id === updatedOrder.id);
+      if (!exists) return [updatedOrder, ...prev];
+      return prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
+    });
+  }, []);
+
   const refreshCatalogAndInventory = useCallback(async () => {
     setIsLoadingCatalog(true);
     try {
@@ -523,14 +532,7 @@ export const App: React.FC = () => {
               order={activeOrder}
               orders={customerOrders}
               onSelectOrder={setActiveOrder}
-              onOrderUpdated={(updatedOrder) => {
-                setActiveOrder(updatedOrder);
-                setCustomerOrders((prev) => {
-                  const exists = prev.some((o) => o.id === updatedOrder.id);
-                  if (!exists) return [updatedOrder, ...prev];
-                  return prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o));
-                });
-              }}
+              onOrderUpdated={handleCustomerOrderUpdated}
               onContinueShopping={() => setShowOrderTracker(false)}
               onViewStaffDetails={() => setViewMode('admin')}
             />

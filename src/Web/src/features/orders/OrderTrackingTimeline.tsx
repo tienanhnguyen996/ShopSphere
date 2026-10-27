@@ -73,17 +73,32 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
       return currentId;
     }
     if (shipment.orderId && !shipment.orderId.startsWith('demo-')) {
-      try {
-        const fetched = await ShipmentsService.getShipmentByOrderId({ orderId: shipment.orderId });
-        if (fetched.id) {
-          onShipmentUpdated(fetched);
-          return fetched.id;
-        }
-      } catch {
-        // Fall through to deterministic UUID for API call
+      const fetched = await ShipmentsService.getShipmentByOrderId({ orderId: shipment.orderId });
+      if (fetched.id) {
+        onShipmentUpdated(fetched);
+        return fetched.id;
       }
     }
-    return '00000000-0000-0000-0000-000000009042';
+    throw new Error(
+      'Shipment has not been created by ShippingService yet. Click "Sync from ShippingService" and try again.'
+    );
+  };
+
+  const describeApiError = (err: unknown, fallback: string): string => {
+    const status =
+      typeof err === 'object' && err !== null && 'status' in err
+        ? Number((err as { status: unknown }).status)
+        : undefined;
+    if (status === 429) {
+      return '429 Too Many Requests: the API Gateway rate limit was hit. Wait a few seconds and try again.';
+    }
+    if (status === 404) {
+      return '404 Not Found: ShippingService has no shipment with this ID. Sync from ShippingService first.';
+    }
+    if (status === 409) {
+      return `409 Conflict: ShippingService rejected this transition for shipment state '${shipmentState}'.`;
+    }
+    return err instanceof Error ? err.message : fallback;
   };
 
   const handleRecordHandover = async () => {
@@ -102,7 +117,7 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
     }
 
     setIsMutating(true);
-    const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
+    const isDemoShipment = !shipment.orderId || shipment.orderId.startsWith('demo-');
     try {
       const targetShipmentId = await resolveTargetShipmentId();
       const updated = await ShipmentsService.recordCarrierHandover({
@@ -133,7 +148,7 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
           ],
         });
       } else {
-        setActionError(err instanceof Error ? err.message : 'Unable to record carrier handover.');
+        setActionError(describeApiError(err, 'Unable to record carrier handover.'));
       }
     } finally {
       setIsMutating(false);
@@ -156,7 +171,7 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
     }
 
     setIsMutating(true);
-    const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
+    const isDemoShipment = !shipment.orderId || shipment.orderId.startsWith('demo-');
     try {
       const targetShipmentId = await resolveTargetShipmentId();
       const updated = await ShipmentsService.recordShipmentDelivery({
@@ -186,7 +201,7 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
           ],
         });
       } else {
-        setActionError(err instanceof Error ? err.message : 'Unable to record package delivery.');
+        setActionError(describeApiError(err, 'Unable to record package delivery.'));
       }
     } finally {
       setIsMutating(false);
@@ -207,7 +222,7 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
     }
 
     setIsMutating(true);
-    const isDemoShipment = !shipment.id || shipment.id.startsWith('demo-');
+    const isDemoShipment = !shipment.orderId || shipment.orderId.startsWith('demo-');
     try {
       if (isHandedOverOrDelivered) {
         throw new Error(
@@ -240,7 +255,7 @@ export const OrderTrackingTimeline: React.FC<OrderTrackingTimelineProps> = ({
           ],
         });
       } else {
-        setActionError(err instanceof Error ? err.message : 'Shipment cancellation rejected.');
+        setActionError(describeApiError(err, 'Shipment cancellation rejected.'));
       }
     } finally {
       setIsMutating(false);
