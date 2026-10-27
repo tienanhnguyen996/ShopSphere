@@ -149,17 +149,28 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
         // Keep current order if OrderService list fails
       }
 
-      const targetOrderId =
-        targetOrder.id && !targetOrder.id.startsWith('demo-')
-          ? targetOrder.id
-          : '00000000-0000-0000-0000-000000009042';
+      if (!targetOrder.id || targetOrder.id.startsWith('demo-')) {
+        if (normalizeOrderState(targetOrder.status ?? undefined) === 'Confirmed') {
+          setShipment((prev) => prev ?? buildFallbackShipment(targetOrder));
+        }
+        return;
+      }
+
+      const targetOrderId = targetOrder.id;
 
       try {
         const latestOrder = await OrdersService.getOrderById({ id: targetOrderId });
         targetOrder = latestOrder;
-        onOrderUpdated(latestOrder);
+        if (
+          order.id !== latestOrder.id ||
+          order.status !== latestOrder.status ||
+          order.shipmentId !== latestOrder.shipmentId ||
+          order.trackingNumber !== latestOrder.trackingNumber
+        ) {
+          onOrderUpdated(latestOrder);
+        }
       } catch {
-        // Keep current order snapshot if demo ID is not in DB
+        // Keep current order snapshot if OrderService fails
       }
 
       try {

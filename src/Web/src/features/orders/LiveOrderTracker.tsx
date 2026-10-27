@@ -60,6 +60,10 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const backoffRef = useRef<number>(1000);
+  const onOrderUpdatedRef = useRef(onOrderUpdated);
+  useEffect(() => {
+    onOrderUpdatedRef.current = onOrderUpdated;
+  });
 
   const orderState = normalizeOrderState(order.status ?? undefined);
   const shipmentState = shipment ? normalizeShipmentState(shipment.status ?? undefined) : null;
@@ -79,7 +83,7 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
     setIsPolling(true);
     try {
       const latestOrder = await OrdersService.getOrderById({ id: order.id });
-      onOrderUpdated(latestOrder);
+      onOrderUpdatedRef.current(latestOrder);
 
       try {
         const latestShipment = await ShipmentsService.getShipmentByOrderId({ orderId: order.id });
@@ -99,7 +103,7 @@ export const LiveOrderTracker: React.FC<LiveOrderTrackerProps> = ({
     } finally {
       setIsPolling(false);
     }
-  }, [isDemoOrder, onOrderUpdated, order.id]);
+  }, [isDemoOrder, order.id]);
 
   // Seed or sync demo shipment and notification previews when order transitions
   useEffect(() => {

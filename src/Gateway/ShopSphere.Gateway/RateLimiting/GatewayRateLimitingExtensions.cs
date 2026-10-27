@@ -20,9 +20,9 @@ public static class GatewayRateLimitPolicies
 
 public sealed class GatewayRateLimitingOptions
 {
-    public int GlobalPermitLimit { get; set; } = 100;
-    public int AuthPermitLimit { get; set; } = 20;
-    public int CheckoutPermitLimit { get; set; } = 30;
+    public int GlobalPermitLimit { get; set; } = 1000;
+    public int AuthPermitLimit { get; set; } = 60;
+    public int CheckoutPermitLimit { get; set; } = 120;
     public int WindowSeconds { get; set; } = 60;
 }
 
